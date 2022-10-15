@@ -29,4 +29,4 @@ read -sx TOGGL_API_TOKEN
 tgl
 ```
 
-[1]: https://crates.io/crates/tgl-cli/0.1.0
+[1]: https://crates.io/crates/tgl-cli
