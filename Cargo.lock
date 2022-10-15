@@ -659,7 +659,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tgl"
+name = "tgl-cli"
 version = "0.1.0"
 dependencies = [
  "reqwest",
