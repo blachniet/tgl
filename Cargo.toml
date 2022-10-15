@@ -4,9 +4,8 @@ version = "0.1.0"
 edition = "2021"
 description = "A simple Toggl command line client."
 homepage = "https://github.com/blachniet/tgl"
-homepage = "https://github.com/blachniet/tgl"
+repository = "https://github.com/blachniet/tgl"
 license = "MIT"
-license-file = "LICENSE"
 keywords = ["toggl"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
