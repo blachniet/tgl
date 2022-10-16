@@ -6,10 +6,10 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let token = env::var("TOGGL_API_TOKEN")?;
     let client = togglapi::Client::new(token)?;
 
-    let current_entry = client.current_entry()?;
+    let current_entry = client.get_current_entry()?;
     println!("\ncurrent entry = {:?}", current_entry);
 
-    let recent_entries = client.recent_entries()?;
+    let recent_entries = client.get_recent_entries()?;
     println!("\nrecent entries = {:?}", recent_entries);
 
     let recent_workspace_ids: HashSet<_> = recent_entries
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let recent_projects: Result<Vec<_>, _> = recent_workspace_ids
         .iter()
-        .map(|wid| client.projects(wid))
+        .map(|wid| client.get_projects(wid))
         .collect();
     println!("\nrecent projects = {:?}", recent_projects?);
 
@@ -56,7 +56,7 @@ mod togglapi {
             })
         }
 
-        pub fn current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>> {
+        pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>> {
             let current_entry: Option<TimeEntry> = self
                 .c
                 .get("https://api.track.toggl.com/api/v9/me/time_entries/current")
@@ -67,7 +67,7 @@ mod togglapi {
             Ok(current_entry)
         }
 
-        pub fn recent_entries(&self) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
+        pub fn get_recent_entries(&self) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
             let recent_entries: Vec<TimeEntry> = self
                 .c
                 .get("https://api.track.toggl.com/api/v9/me/time_entries")
@@ -78,7 +78,7 @@ mod togglapi {
             Ok(recent_entries)
         }
 
-        pub fn projects(
+        pub fn get_projects(
             &self,
             workspace_id: &Number,
         ) -> Result<Vec<Project>, Box<dyn std::error::Error>> {
