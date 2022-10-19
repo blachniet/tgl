@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             let (hours, minutes, seconds) = get_duration_parts(duration);
             println!("🏃 {}h{}m{}s", hours, minutes, seconds);
         } else {
-            eprintln!("Error: cannot parse {:?} as i64", current_entry.duration);
+            println!("Error: cannot parse {:?} as i64", current_entry.duration);
             std::process::exit(1);
         }
     } else {
