@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         println!("🧍 No timers running");
     }
 
-    let recent_entries = client.get_recent_entries()?;
+    let recent_entries = client.get_time_entries(None)?;
     println!("\nrecent entries = {:?}", recent_entries);
 
     let recent_workspace_ids: HashSet<_> = recent_entries
@@ -54,6 +54,7 @@ fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
 }
 
 mod togglapi {
+    use chrono::NaiveDate;
     use reqwest::header;
     use serde::Deserialize;
     use serde_json::Number;
@@ -93,10 +94,16 @@ mod togglapi {
             Ok(current_entry)
         }
 
-        pub fn get_recent_entries(&self) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
+        pub fn get_time_entries(&self, start_end_dates: Option<(NaiveDate, NaiveDate)>) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
+            let base_url = "https://api.track.toggl.com/api/v9/me/time_entries";
+            let url = match start_end_dates {
+                Some((start_date, end_date)) => format!("{base_url}?start_date={start_date}&end_date={end_date}"),
+                None => base_url.to_string(),
+            };
+
             let recent_entries: Vec<TimeEntry> = self
                 .c
-                .get("https://api.track.toggl.com/api/v9/me/time_entries")
+                .get(url)
                 .basic_auth(&self.token, Some("api_token"))
                 .send()?
                 .json()?;
