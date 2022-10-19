@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let client = togglapi::Client::new(token)?;
 
     if let Some(current_entry) = client.get_current_entry()? {
-        if let Some(negative_start_epoch) = current_entry.duration.as_ref().map(|d| d.as_i64()).flatten() {
+        if let Some(negative_start_epoch) = current_entry.duration.as_i64() {
             let start = Utc.timestamp(-1*negative_start_epoch, 0);
             let duration = now - start;
             let (hours, minutes, seconds) = get_duration_parts(duration);
@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let recent_workspace_ids: HashSet<_> = recent_entries
         .into_iter()
-        .filter_map(|e| e.workspace_id)
+        .map(|e| e.workspace_id)
         .collect();
     println!("\nrecent workspace ids = {:?}", recent_workspace_ids);
 
@@ -121,20 +121,21 @@ mod togglapi {
 
     #[derive(Deserialize, Debug)]
     pub struct TimeEntry {
-        pub duration: Option<Number>,
-        pub id: Option<Number>,
+        pub description: Option<String>,
+        pub duration: Number,
+        pub id: Number,
         pub project_id: Option<Number>,
-        pub start: Option<String>,
-        pub stop: Option<String>,
+        pub start: String,
+        pub stop: String,
         pub task_id: Option<Number>,
-        pub workspace_id: Option<Number>,
+        pub workspace_id: Number,
     }
 
     #[derive(Deserialize, Debug)]
     pub struct Project {
         pub client_id: Option<Number>,
-        pub id: Option<Number>,
-        pub name: Option<String>,
-        pub workspace_id: Option<Number>,
+        pub id: Number,
+        pub name: String,
+        pub workspace_id: Number,
     }
 }
