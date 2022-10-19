@@ -5,7 +5,13 @@ use std::error;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let now = Utc::now();
-    let token = env::var("TOGGL_API_TOKEN")?;
+    let token = match env::var("TOGGL_API_TOKEN") {
+        Ok(v) => v,
+        Err(_) => {
+            println!("TOGGL_API_TOKEN environment variable missing.");
+            std::process::exit(1);
+        },
+    };
     let client = togglapi::Client::new(token)?;
 
     if let Some(current_entry) = client.get_current_entry()? {
