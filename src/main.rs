@@ -1,13 +1,26 @@
+use chrono::{Duration, TimeZone, Utc};
 use std::collections::HashSet;
 use std::env;
 use std::error;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
+    let now = Utc::now();
     let token = env::var("TOGGL_API_TOKEN")?;
     let client = togglapi::Client::new(token)?;
 
-    let current_entry = client.get_current_entry()?;
-    println!("\ncurrent entry = {:?}", current_entry);
+    if let Some(current_entry) = client.get_current_entry()? {
+        if let Some(negative_start_epoch) = current_entry.duration.as_ref().map(|d| d.as_i64()).flatten() {
+            let start = Utc.timestamp(-1*negative_start_epoch, 0);
+            let duration = now - start;
+            let (hours, minutes, seconds) = get_duration_parts(duration);
+            println!("🏃 {}h{}m{}s", hours, minutes, seconds);
+        } else {
+            eprintln!("Error: cannot parse {:?} as i64", current_entry.duration);
+            std::process::exit(1);
+        }
+    } else {
+        println!("🧍 No timers running");
+    }
 
     let recent_entries = client.get_recent_entries()?;
     println!("\nrecent entries = {:?}", recent_entries);
@@ -25,6 +38,13 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     println!("\nrecent projects = {:?}", recent_projects?);
 
     Ok(())
+}
+
+fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
+    let minutes = (dur - Duration::hours(dur.num_hours())).num_minutes();
+    let seconds = (dur - Duration::minutes(dur.num_minutes())).num_seconds();
+    
+    (dur.num_hours(), minutes, seconds)
 }
 
 mod togglapi {
