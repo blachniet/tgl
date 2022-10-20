@@ -1,5 +1,4 @@
 use chrono::{Duration, Utc};
-use std::collections::HashSet;
 use std::env;
 use std::error;
 
@@ -11,30 +10,16 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             std::process::exit(1);
         },
     };
-    let svc = togglsvc::Client::new(token.to_string(), || Utc::now())?;
-    let client = togglapi::Client::new(token)?;
+    let client = togglsvc::Client::new(token.to_string(), || Utc::now())?;
 
-    if let Some(current_entry) = svc.get_current_entry()? {
+    if let Some(current_entry) = client.get_current_entry()? {
         let (hours, minutes, seconds) = get_duration_parts(current_entry.duration);
-        println!("🏃 {}h{}m{}s", hours, minutes, seconds);
+        let project_txt = current_entry.project_name.unwrap_or("<no project>".to_string());
+        let description_txt = current_entry.description.unwrap_or("<no description>".to_string());
+        println!("🏃 {hours}h{minutes}m{seconds}s {project_txt} - {description_txt}");
     } else {
         println!("🤷 No timers running");
     }
-
-    let recent_entries = client.get_time_entries(None)?;
-    println!("\nrecent entries = {:?}", recent_entries);
-
-    let recent_workspace_ids: HashSet<_> = recent_entries
-        .into_iter()
-        .map(|e| e.workspace_id)
-        .collect();
-    println!("\nrecent workspace ids = {:?}", recent_workspace_ids);
-
-    let recent_projects: Result<Vec<_>, _> = recent_workspace_ids
-        .iter()
-        .map(|wid| client.get_projects(wid))
-        .collect();
-    println!("\nrecent projects = {:?}", recent_projects?);
 
     Ok(())
 }
@@ -53,6 +38,7 @@ mod togglsvc {
     pub struct Client {
         c: togglapi::Client,
         get_now: fn() -> DateTime<Utc>,
+        project_cache: elsa::map::FrozenMap<(i64, i64), Box<Project>>,
     }
 
     impl Client {
@@ -60,14 +46,25 @@ mod togglsvc {
             Ok(Self {
                 c: togglapi::Client::new(token)?,
                 get_now,
+                project_cache: elsa::map::FrozenMap::new(),
             })
         }
 
         pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>>{
             if let Some(curr_entry) = self.c.get_current_entry()? {
+                let project_id = curr_entry.project_id.map(|pid| pid.as_i64().unwrap());
+                let project = match project_id {
+                    Some(pid) => self.get_project(
+                        curr_entry.workspace_id.as_i64().unwrap(),
+                        pid,
+                    )?,
+                    None => None,
+                };
+
                 Ok(Some(TimeEntry {
                     description: curr_entry.description,
                     duration: self.toggl_to_chrono_duration(curr_entry.duration),
+                    project_name: project.map(|p| p.name.to_string()),
                 }))
             } else {
                 Ok(None)
@@ -75,8 +72,7 @@ mod togglsvc {
         }
 
         fn toggl_to_chrono_duration(&self, duration: serde_json::Number) -> Duration {
-            // TODO: Come back and remove expect.
-            let duration = duration.as_i64().expect("parse duration");
+            let duration = duration.as_i64().unwrap();
             if duration < 0 {
                 // Running entry is represented as the negative epoch timestamp
                 // of the start time.
@@ -85,11 +81,30 @@ mod togglsvc {
                 Duration::seconds(duration)
             }
         }
+
+        fn get_project(&self, workspace_id: i64, project_id: i64) -> Result<Option<&Project>, Box<dyn std::error::Error>> {
+            let key = (workspace_id, project_id);
+            if let Some(project) = self.project_cache.get(&key) {
+                return Ok(Some(project));
+            }
+
+            let workspace_id_num = workspace_id.into();
+            let projects = self.c.get_projects(&workspace_id_num)?;
+            for p in projects {
+                self.project_cache.insert(
+                    (workspace_id, p.id.as_i64().expect("parse number as i64")),
+                    Box::new(Project{ name: p.name }),
+                );
+            }
+
+            Ok(self.project_cache.get(&key))
+        }
     }
 
     pub struct TimeEntry {
         pub description: Option<String>,
         pub duration: Duration,
+        pub project_name: Option<String>,
     }
 
     pub struct Project {
