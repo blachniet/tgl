@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
         let (hours, minutes, seconds) = get_duration_parts(current_entry.duration);
         println!("🏃 {}h{}m{}s", hours, minutes, seconds);
     } else {
-        println!("🧍 No timers running");
+        println!("🤷 No timers running");
     }
 
     let recent_entries = client.get_time_entries(None)?;
