@@ -1,10 +1,9 @@
-use chrono::{Duration, TimeZone, Utc};
+use chrono::{Duration, Utc};
 use std::collections::HashSet;
 use std::env;
 use std::error;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let now = Utc::now();
     let token = match env::var("TOGGL_API_TOKEN") {
         Ok(v) => v,
         Err(_) => {
@@ -12,18 +11,12 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             std::process::exit(1);
         },
     };
+    let svc = togglsvc::Client::new(token.to_string(), || Utc::now())?;
     let client = togglapi::Client::new(token)?;
 
-    if let Some(current_entry) = client.get_current_entry()? {
-        if let Some(negative_start_epoch) = current_entry.duration.as_i64() {
-            let start = Utc.timestamp(-1*negative_start_epoch, 0);
-            let duration = now - start;
-            let (hours, minutes, seconds) = get_duration_parts(duration);
-            println!("🏃 {}h{}m{}s", hours, minutes, seconds);
-        } else {
-            println!("Error: cannot parse {:?} as i64", current_entry.duration);
-            std::process::exit(1);
-        }
+    if let Some(current_entry) = svc.get_current_entry()? {
+        let (hours, minutes, seconds) = get_duration_parts(current_entry.duration);
+        println!("🏃 {}h{}m{}s", hours, minutes, seconds);
     } else {
         println!("🧍 No timers running");
     }
@@ -51,6 +44,57 @@ fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
     let seconds = (dur - Duration::minutes(dur.num_minutes())).num_seconds();
     
     (dur.num_hours(), minutes, seconds)
+}
+
+mod togglsvc {
+    use super::togglapi;
+    use chrono::{DateTime, Duration, TimeZone, Utc};
+
+    pub struct Client {
+        c: togglapi::Client,
+        get_now: fn() -> DateTime<Utc>,
+    }
+
+    impl Client {
+        pub fn new(token: String, get_now: fn() -> DateTime<Utc>) -> Result<Self, reqwest::Error> {
+            Ok(Self {
+                c: togglapi::Client::new(token)?,
+                get_now,
+            })
+        }
+
+        pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>>{
+            if let Some(curr_entry) = self.c.get_current_entry()? {
+                Ok(Some(TimeEntry {
+                    description: curr_entry.description,
+                    duration: self.toggl_to_chrono_duration(curr_entry.duration),
+                }))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn toggl_to_chrono_duration(&self, duration: serde_json::Number) -> Duration {
+            // TODO: Come back and remove expect.
+            let duration = duration.as_i64().expect("parse duration");
+            if duration < 0 {
+                // Running entry is represented as the negative epoch timestamp
+                // of the start time.
+                (self.get_now)() - Utc.timestamp(-1*duration, 0)
+            } else {
+                Duration::seconds(duration)
+            }
+        }
+    }
+
+    pub struct TimeEntry {
+        pub description: Option<String>,
+        pub duration: Duration,
+    }
+
+    pub struct Project {
+        pub name: String,
+    }
 }
 
 mod togglapi {
@@ -132,8 +176,8 @@ mod togglapi {
         pub duration: Number,
         pub id: Number,
         pub project_id: Option<Number>,
-        pub start: String,
-        pub stop: String,
+        pub start: Option<String>,
+        pub stop: Option<String>,
         pub task_id: Option<Number>,
         pub workspace_id: Number,
     }
