@@ -3,13 +3,22 @@ use std::env;
 use std::error;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let token = match env::var("TOGGL_API_TOKEN") {
-        Ok(v) => v,
-        Err(_) => {
-            println!("TOGGL_API_TOKEN environment variable missing.");
-            std::process::exit(1);
+    let entry = keyring::Entry::new("github.com/blachniet/tgl", "api_token");
+    let token = match entry.get_password() {
+        Ok(token) => Ok(token),
+        Err(err) => match err {
+            keyring::Error::NoEntry => {
+                let token = dialoguer::Password::new().with_prompt("Enter your API token from https://track.toggl.com/profile")
+                    .with_confirmation("Confirm token", "Tokens don't match")
+                    .interact()?;
+
+                entry.set_password(&token)?;
+                Ok(token)
+            },
+            _ => Err(err),
         },
-    };
+    }?;
+
     let client = togglsvc::Client::new(token.to_string(), || Utc::now())?;
 
     if let Some(current_entry) = client.get_current_entry()? {
