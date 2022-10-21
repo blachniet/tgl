@@ -1,5 +1,4 @@
 use chrono::{Duration, Utc};
-use std::env;
 use std::error;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
