@@ -41,7 +41,7 @@ fn fmt_entry(entry: &TimeEntry) -> String {
         false => "⏱",
     };
     let duration = fmt_duration(entry.duration);
-    let project_name = entry.project_name.as_ref().map_or("<no project".to_string(), |n| n.to_string());
+    let project_name = entry.project_name.as_ref().map_or("<no project>".to_string(), |n| n.to_string());
     let description = entry.description.as_ref().map_or("".to_string(), |d| {
         if d.is_empty() {
             "".to_string()
