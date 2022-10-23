@@ -1,4 +1,4 @@
-use chrono::{Duration, Utc};
+use chrono::{Duration, Utc, DateTime, Local};
 use togglsvc::TimeEntry;
 use std::error;
 
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 fn fmt_entry(entry: &TimeEntry) -> String {
     let icon = match entry.is_running {
         true => "🏃",
-        false => "⏱'",
+        false => "⏱",
     };
     let duration = fmt_duration(entry.duration);
     let project_name = entry.project_name.as_ref().map_or("<no project".to_string(), |n| n.to_string());
@@ -49,13 +49,28 @@ fn fmt_entry(entry: &TimeEntry) -> String {
             format!("- {d}")
         }
     });
+    let start_stop = fmt_start_stop(entry);
 
-    format!("{icon} {duration} {project_name} {description}")
+    format!("{icon} {duration} {project_name} {description}\n  {start_stop}")
 }
 
 fn fmt_duration(dur: Duration) -> String {
     let (hours, minutes, seconds) = get_duration_parts(dur);
     format!("{hours}:{minutes:02}:{seconds:02}")
+}
+
+fn fmt_start_stop(entry: &TimeEntry) -> String {
+    if let Some(start) = entry.start {
+        let start: DateTime<Local> = DateTime::from(start);
+        if let Some(stop) = entry.stop {
+            let stop: DateTime<Local> = DateTime::from(stop);
+            format!("{start} / {stop}")
+        } else {
+            format!("{start} / ...")
+        }
+    } else {
+        "".to_string()
+    }
 }
 
 fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
@@ -112,12 +127,22 @@ mod togglsvc {
                 None => None,
             };
             let (duration, is_running) = self.parse_duration(api_entry.duration);
+            let start: Option<DateTime<Utc>> = match api_entry.start {
+                Some(s) => Some(s.parse()?),
+                None => None
+            };
+            let stop: Option<DateTime<Utc>> = match api_entry.stop {
+                Some(s) => Some(s.parse()?),
+                None => None
+            };
 
             Ok(TimeEntry {
                 description: api_entry.description,
                 duration,
                 is_running,
                 project_name: project.map(|p| p.name.to_string()),
+                start,
+                stop,
             })
         }
 
@@ -166,6 +191,8 @@ mod togglsvc {
         pub duration: Duration,
         pub is_running: bool,
         pub project_name: Option<String>,
+        pub start: Option<DateTime<Utc>>,
+        pub stop: Option<DateTime<Utc>>,
     }
 
     pub struct Project {
