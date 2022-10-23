@@ -1,4 +1,5 @@
 use chrono::{Duration, Utc};
+use togglsvc::TimeEntry;
 use std::error;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
@@ -21,15 +22,40 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let client = togglsvc::Client::new(token.to_string(), || Utc::now())?;
 
     if let Some(current_entry) = client.get_current_entry()? {
-        let (hours, minutes, seconds) = get_duration_parts(current_entry.duration);
-        let project_txt = current_entry.project_name.unwrap_or("<no project>".to_string());
-        let description_txt = current_entry.description.unwrap_or("<no description>".to_string());
-        println!("🏃 {hours}h{minutes}m{seconds}s {project_txt} - {description_txt}");
+        fmt_entry(&current_entry);
     } else {
         println!("🤷 No timers running");
     }
 
+    let latest_entries = client.get_latest_entries()?;
+    for entry in latest_entries.iter() {
+        println!("{}", fmt_entry(entry));
+    }
+
     Ok(())
+}
+
+fn fmt_entry(entry: &TimeEntry) -> String {
+    let icon = match entry.is_running {
+        true => "🏃",
+        false => "⏱'",
+    };
+    let duration = fmt_duration(entry.duration);
+    let project_name = entry.project_name.as_ref().map_or("<no project".to_string(), |n| n.to_string());
+    let description = entry.description.as_ref().map_or("".to_string(), |d| {
+        if d.is_empty() {
+            "".to_string()
+        } else {
+            format!("- {d}")
+        }
+    });
+
+    format!("{icon} {duration} {project_name} {description}")
+}
+
+fn fmt_duration(dur: Duration) -> String {
+    let (hours, minutes, seconds) = get_duration_parts(dur);
+    format!("{hours}:{minutes:02}:{seconds:02}")
 }
 
 fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
@@ -60,33 +86,59 @@ mod togglsvc {
 
         pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>>{
             if let Some(curr_entry) = self.c.get_current_entry()? {
-                let project_id = curr_entry.project_id.map(|pid| pid.as_i64().unwrap());
-                let project = match project_id {
-                    Some(pid) => self.get_project(
-                        curr_entry.workspace_id.as_i64().unwrap(),
-                        pid,
-                    )?,
-                    None => None,
-                };
-
-                Ok(Some(TimeEntry {
-                    description: curr_entry.description,
-                    duration: self.toggl_to_chrono_duration(curr_entry.duration),
-                    project_name: project.map(|p| p.name.to_string()),
-                }))
+                Ok(Some(self.build_time_entry(curr_entry)?))
             } else {
                 Ok(None)
             }
         }
 
-        fn toggl_to_chrono_duration(&self, duration: serde_json::Number) -> Duration {
+        pub fn get_latest_entries(&self) -> Result<Vec::<TimeEntry>, Box<dyn std::error::Error>> {
+            let api_entries = self.c.get_time_entries(None)?;
+            let entries: Result<Vec<_>, _> = api_entries
+                .into_iter()
+                .map(|e| self.build_time_entry(e))
+                .collect();
+            
+            entries
+        }
+
+        fn build_time_entry(&self, api_entry: togglapi::TimeEntry) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+            let project_id = api_entry.project_id.map(|pid| pid.as_i64().unwrap());
+            let project = match project_id {
+                Some(pid) => self.get_project(
+                    api_entry.workspace_id.as_i64().unwrap(),
+                    pid,
+                )?,
+                None => None,
+            };
+            let (duration, is_running) = self.parse_duration(api_entry.duration);
+
+            Ok(TimeEntry {
+                description: api_entry.description,
+                duration,
+                is_running,
+                project_name: project.map(|p| p.name.to_string()),
+            })
+        }
+
+        /// Creates a [`chrono::Duration`] from a Toggle API duration.
+        ///
+        /// Returns a tuple containing the duration value and bool. If the bool
+        /// is `true`, then the associated timer was running. If the bool is
+        /// `false`, then the associated timer was not running.
+        ///
+        /// Panics if `duration` cannot be represented as an `i64`.
+        fn parse_duration(&self, duration: serde_json::Number) -> (Duration, bool) {
             let duration = duration.as_i64().unwrap();
             if duration < 0 {
-                // Running entry is represented as the negative epoch timestamp
-                // of the start time.
-                (self.get_now)() - Utc.timestamp(-1*duration, 0)
+                (
+                    // Running entry is represented as the negative epoch timestamp
+                    // of the start time.
+                    (self.get_now)() - Utc.timestamp(-1*duration, 0),
+                    true,
+                )
             } else {
-                Duration::seconds(duration)
+                (Duration::seconds(duration), false)
             }
         }
 
@@ -112,6 +164,7 @@ mod togglsvc {
     pub struct TimeEntry {
         pub description: Option<String>,
         pub duration: Duration,
+        pub is_running: bool,
         pub project_name: Option<String>,
     }
 
