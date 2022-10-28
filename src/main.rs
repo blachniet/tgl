@@ -21,15 +21,35 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let client = togglsvc::Client::new(token.to_string(), || Utc::now())?;
 
+    let today = Local::today().and_hms(0, 0, 0);
+    let tomorrow = Local::today().succ().and_hms(0, 0, 0);
+    let mut latest_entries = client.get_latest_entries()?;
+    latest_entries.sort_unstable_by_key(|e| e.start);
+
+    for entry in latest_entries
+        .iter()
+        .filter(|e| {
+            if let Some(start) = e.start {
+                if start >= today && start < tomorrow {
+                    return true;
+                }
+            }
+
+            if let Some(stop) = e.stop {
+                if stop >= today && stop < tomorrow {
+                    return true;
+                }
+            }
+
+            return false;
+        }) {
+        println!("{}", fmt_entry(entry));
+    }
+
     if let Some(current_entry) = client.get_current_entry()? {
         fmt_entry(&current_entry);
     } else {
         println!("🤷 No timers running");
-    }
-
-    let latest_entries = client.get_latest_entries()?;
-    for entry in latest_entries.iter() {
-        println!("{}", fmt_entry(entry));
     }
 
     Ok(())
@@ -51,7 +71,7 @@ fn fmt_entry(entry: &TimeEntry) -> String {
     });
     let start_stop = fmt_start_stop(entry);
 
-    format!("{icon} {duration} {project_name} {description}\n  {start_stop}")
+    format!("{icon} {duration} {project_name} {description} {start_stop}")
 }
 
 fn fmt_duration(dur: Duration) -> String {
