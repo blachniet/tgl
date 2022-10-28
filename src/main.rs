@@ -26,6 +26,8 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     let mut latest_entries = client.get_latest_entries()?;
     latest_entries.sort_unstable_by_key(|e| e.start);
 
+    let mut dur_today = Duration::zero();
+
     for entry in latest_entries
         .iter()
         .filter(|e| {
@@ -44,13 +46,18 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             return false;
         }) {
         println!("{}", fmt_entry(entry));
+        dur_today = dur_today + entry.duration;
     }
 
     if let Some(current_entry) = client.get_current_entry()? {
+        dur_today = dur_today + current_entry.duration;
         fmt_entry(&current_entry);
     } else {
         println!("🤷 No timers running");
     }
+
+    let dur_today = fmt_duration(dur_today);
+    println!("\n⏱ {dur_today} logged today");
 
     Ok(())
 }
@@ -58,7 +65,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 fn fmt_entry(entry: &TimeEntry) -> String {
     let icon = match entry.is_running {
         true => "🏃",
-        false => "⏱",
+        false => "-",
     };
     let duration = fmt_duration(entry.duration);
     let project_name = entry.project_name.as_ref().map_or("<no project>".to_string(), |n| n.to_string());
