@@ -1,24 +1,9 @@
 use chrono::{Duration, Utc, DateTime, Local};
 use togglsvc::TimeEntry;
-use std::error;
+use std::{error, env};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
-    let entry = keyring::Entry::new("github.com/blachniet/tgl", "api_token");
-    let token = match entry.get_password() {
-        Ok(token) => Ok(token),
-        Err(err) => match err {
-            keyring::Error::NoEntry => {
-                let token = dialoguer::Password::new().with_prompt("Enter your API token from https://track.toggl.com/profile")
-                    .with_confirmation("Confirm token", "Tokens don't match")
-                    .interact()?;
-
-                entry.set_password(&token)?;
-                Ok(token)
-            },
-            _ => Err(err),
-        },
-    }?;
-
+    let token = get_api_token()?;
     let client = togglsvc::Client::new(token.to_string(), || Utc::now())?;
 
     let today = Local::today().and_hms(0, 0, 0);
@@ -27,7 +12,6 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     latest_entries.sort_unstable_by_key(|e| e.start);
 
     let mut dur_today = Duration::zero();
-
     for entry in latest_entries
         .iter()
         .filter(|e| {
@@ -60,6 +44,33 @@ fn main() -> Result<(), Box<dyn error::Error>> {
     println!("\n⏱ {dur_today} logged today");
 
     Ok(())
+}
+
+fn get_api_token() -> Result<String, Box<dyn error::Error>> {
+    // Look for the token in an environment variable.
+    let token = env::var("TOGGL_API_TOKEN")?;
+    if !token.is_empty() {
+        return Ok(token);
+    }
+
+    // Look for the token in the keyring.
+    let entry = keyring::Entry::new("github.com/blachniet/tgl", "api_token");
+    let token = match entry.get_password() {
+        Ok(token) => Ok(token),
+        Err(err) => match err {
+            keyring::Error::NoEntry => {
+                let token = dialoguer::Password::new().with_prompt("Enter your API token from https://track.toggl.com/profile")
+                    .with_confirmation("Confirm token", "Tokens don't match")
+                    .interact()?;
+
+                entry.set_password(&token)?;
+                Ok(token)
+            },
+            _ => Err(err),
+        },
+    }?;
+
+    Ok(token)
 }
 
 fn fmt_entry(entry: &TimeEntry) -> String {
