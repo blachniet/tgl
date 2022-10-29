@@ -4,7 +4,7 @@ use togglsvc::TimeEntry;
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let token = get_api_token()?;
-    let client = togglsvc::Client::new(token.to_string(), || Utc::now())?;
+    let client = togglsvc::Client::new(token, Utc::now)?;
 
     let today = Local::today().and_hms(0, 0, 0);
     let tomorrow = Local::today().succ().and_hms(0, 0, 0);
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn error::Error>> {
             }
         }
 
-        return false;
+        false
     }) {
         println!("{}", fmt_entry(entry));
         dur_today = dur_today + entry.duration;
@@ -198,7 +198,7 @@ mod togglsvc {
                 (
                     // Running entry is represented as the negative epoch timestamp
                     // of the start time.
-                    (self.get_now)() - Utc.timestamp(-1 * duration, 0),
+                    (self.get_now)() - Utc.timestamp(-duration, 0),
                     true,
                 )
             } else {
