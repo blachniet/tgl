@@ -138,14 +138,6 @@ mod togglsvc {
             })
         }
 
-        pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>> {
-            if let Some(curr_entry) = self.c.get_current_entry()? {
-                Ok(Some(self.build_time_entry(curr_entry)?))
-            } else {
-                Ok(None)
-            }
-        }
-
         pub fn get_latest_entries(&self) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
             let api_entries = self.c.get_time_entries(None)?;
             let entries: Result<Vec<_>, _> = api_entries
@@ -271,17 +263,6 @@ mod togglapi {
                     .build()?,
                 token,
             })
-        }
-
-        pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>> {
-            let current_entry: Option<TimeEntry> = self
-                .c
-                .get("https://api.track.toggl.com/api/v9/me/time_entries/current")
-                .basic_auth(&self.token, Some("api_token"))
-                .send()?
-                .json()?;
-
-            Ok(current_entry)
         }
 
         pub fn get_time_entries(
