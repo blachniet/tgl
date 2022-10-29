@@ -45,9 +45,11 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
 fn get_api_token() -> Result<String, Box<dyn error::Error>> {
     // Look for the token in an environment variable.
-    let token = env::var("TOGGL_API_TOKEN")?;
-    if !token.is_empty() {
-        return Ok(token);
+    let token = env::var("TOGGL_API_TOKEN");
+    if let Ok(token) = token {
+        if !token.is_empty() {
+            return Ok(token);
+        }
     }
 
     // Look for the token in the keyring.
