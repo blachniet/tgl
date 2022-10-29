@@ -1,6 +1,6 @@
-use chrono::{Duration, Utc, DateTime, Local};
+use chrono::{DateTime, Duration, Local, Utc};
+use std::{env, error};
 use togglsvc::TimeEntry;
-use std::{error, env};
 
 fn main() -> Result<(), Box<dyn error::Error>> {
     let token = get_api_token()?;
@@ -13,23 +13,21 @@ fn main() -> Result<(), Box<dyn error::Error>> {
 
     let mut is_running = false;
     let mut dur_today = Duration::zero();
-    for entry in latest_entries
-        .iter()
-        .filter(|e| {
-            if let Some(start) = e.start {
-                if start >= today && start < tomorrow {
-                    return true;
-                }
+    for entry in latest_entries.iter().filter(|e| {
+        if let Some(start) = e.start {
+            if start >= today && start < tomorrow {
+                return true;
             }
+        }
 
-            if let Some(stop) = e.stop {
-                if stop >= today && stop < tomorrow {
-                    return true;
-                }
+        if let Some(stop) = e.stop {
+            if stop >= today && stop < tomorrow {
+                return true;
             }
+        }
 
-            return false;
-        }) {
+        return false;
+    }) {
         println!("{}", fmt_entry(entry));
         dur_today = dur_today + entry.duration;
         is_running = is_running || entry.is_running;
@@ -58,13 +56,14 @@ fn get_api_token() -> Result<String, Box<dyn error::Error>> {
         Ok(token) => Ok(token),
         Err(err) => match err {
             keyring::Error::NoEntry => {
-                let token = dialoguer::Password::new().with_prompt("Enter your API token from https://track.toggl.com/profile")
+                let token = dialoguer::Password::new()
+                    .with_prompt("Enter your API token from https://track.toggl.com/profile")
                     .with_confirmation("Confirm token", "Tokens don't match")
                     .interact()?;
 
                 entry.set_password(&token)?;
                 Ok(token)
-            },
+            }
             _ => Err(err),
         },
     }?;
@@ -78,7 +77,10 @@ fn fmt_entry(entry: &TimeEntry) -> String {
         false => "- ",
     };
     let duration = fmt_duration(entry.duration);
-    let project_name = entry.project_name.as_ref().map_or("<no project>".to_string(), |n| n.to_string());
+    let project_name = entry
+        .project_name
+        .as_ref()
+        .map_or("<no project>".to_string(), |n| n.to_string());
     let description = entry.description.as_ref().map_or("".to_string(), |d| {
         if d.is_empty() {
             "".to_string()
@@ -113,7 +115,7 @@ fn fmt_start_stop(entry: &TimeEntry) -> String {
 fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
     let minutes = (dur - Duration::hours(dur.num_hours())).num_minutes();
     let seconds = (dur - Duration::minutes(dur.num_minutes())).num_seconds();
-    
+
     (dur.num_hours(), minutes, seconds)
 }
 
@@ -136,7 +138,7 @@ mod togglsvc {
             })
         }
 
-        pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>>{
+        pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, Box<dyn std::error::Error>> {
             if let Some(curr_entry) = self.c.get_current_entry()? {
                 Ok(Some(self.build_time_entry(curr_entry)?))
             } else {
@@ -144,33 +146,33 @@ mod togglsvc {
             }
         }
 
-        pub fn get_latest_entries(&self) -> Result<Vec::<TimeEntry>, Box<dyn std::error::Error>> {
+        pub fn get_latest_entries(&self) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
             let api_entries = self.c.get_time_entries(None)?;
             let entries: Result<Vec<_>, _> = api_entries
                 .into_iter()
                 .map(|e| self.build_time_entry(e))
                 .collect();
-            
+
             entries
         }
 
-        fn build_time_entry(&self, api_entry: togglapi::TimeEntry) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+        fn build_time_entry(
+            &self,
+            api_entry: togglapi::TimeEntry,
+        ) -> Result<TimeEntry, Box<dyn std::error::Error>> {
             let project_id = api_entry.project_id.map(|pid| pid.as_i64().unwrap());
             let project = match project_id {
-                Some(pid) => self.get_project(
-                    api_entry.workspace_id.as_i64().unwrap(),
-                    pid,
-                )?,
+                Some(pid) => self.get_project(api_entry.workspace_id.as_i64().unwrap(), pid)?,
                 None => None,
             };
             let (duration, is_running) = self.parse_duration(api_entry.duration);
             let start: Option<DateTime<Utc>> = match api_entry.start {
                 Some(s) => Some(s.parse()?),
-                None => None
+                None => None,
             };
             let stop: Option<DateTime<Utc>> = match api_entry.stop {
                 Some(s) => Some(s.parse()?),
-                None => None
+                None => None,
             };
 
             Ok(TimeEntry {
@@ -196,7 +198,7 @@ mod togglsvc {
                 (
                     // Running entry is represented as the negative epoch timestamp
                     // of the start time.
-                    (self.get_now)() - Utc.timestamp(-1*duration, 0),
+                    (self.get_now)() - Utc.timestamp(-1 * duration, 0),
                     true,
                 )
             } else {
@@ -204,7 +206,11 @@ mod togglsvc {
             }
         }
 
-        fn get_project(&self, workspace_id: i64, project_id: i64) -> Result<Option<&Project>, Box<dyn std::error::Error>> {
+        fn get_project(
+            &self,
+            workspace_id: i64,
+            project_id: i64,
+        ) -> Result<Option<&Project>, Box<dyn std::error::Error>> {
             let key = (workspace_id, project_id);
             if let Some(project) = self.project_cache.get(&key) {
                 return Ok(Some(project));
@@ -215,7 +221,7 @@ mod togglsvc {
             for p in projects {
                 self.project_cache.insert(
                     (workspace_id, p.id.as_i64().expect("parse number as i64")),
-                    Box::new(Project{ name: p.name }),
+                    Box::new(Project { name: p.name }),
                 );
             }
 
@@ -278,10 +284,15 @@ mod togglapi {
             Ok(current_entry)
         }
 
-        pub fn get_time_entries(&self, start_end_dates: Option<(NaiveDate, NaiveDate)>) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
+        pub fn get_time_entries(
+            &self,
+            start_end_dates: Option<(NaiveDate, NaiveDate)>,
+        ) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
             let base_url = "https://api.track.toggl.com/api/v9/me/time_entries";
             let url = match start_end_dates {
-                Some((start_date, end_date)) => format!("{base_url}?start_date={start_date}&end_date={end_date}"),
+                Some((start_date, end_date)) => {
+                    format!("{base_url}?start_date={start_date}&end_date={end_date}")
+                }
                 None => base_url.to_string(),
             };
 
