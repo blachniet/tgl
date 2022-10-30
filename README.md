@@ -12,7 +12,13 @@ cargo install tgl-cli
 
 ## Usage
 
-The binary name is `tgl`. It requires that the `TOGGL_API_TOKEN` environment variable is set. You can retrieve your Toggl API token from <https://track.toggl.com/profile>.
+The binary name is `tgl`. It will request your Toggle API token the first time you run it. It will store the token in your system's keyring so that you don't need to provide it in the future.
+
+```sh
+tgl
+```
+
+Alternatively, you can set the `TOGGL_API_TOKEN` environment variable. You can retrieve your Toggl API token from <https://track.toggl.com/profile>.
 
 Bash/Zsh:
 
