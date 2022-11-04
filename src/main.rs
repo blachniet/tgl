@@ -222,6 +222,27 @@ mod togglsvc {
             Ok(self.project_cache.get(&key))
         }
 
+        pub fn get_projects(
+            &self,
+            workspace_id: i64,
+        ) -> Result<Vec<Project>, Box<dyn std::error::Error>> {
+            let api_projects = self.c.get_projects(&workspace_id.into())?;
+            let mut projects = Vec::new();
+
+            for p in api_projects {
+                self.project_cache.insert(
+                    (workspace_id, p.id.as_i64().expect("parse number as i64")),
+                    Box::new(Project {
+                        name: p.name.to_string(),
+                    }),
+                );
+
+                projects.push(Project { name: p.name });
+            }
+
+            Ok(projects)
+        }
+
         pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
             let workspaces = self.c.get_workspaces()?;
             Ok(workspaces
