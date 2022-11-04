@@ -221,6 +221,17 @@ mod togglsvc {
 
             Ok(self.project_cache.get(&key))
         }
+
+        pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
+            let workspaces = self.c.get_workspaces()?;
+            Ok(workspaces
+                .into_iter()
+                .map(|w| Workspace {
+                    id: w.id.as_i64().unwrap(),
+                    name: w.name,
+                })
+                .collect())
+        }
     }
 
     pub struct TimeEntry {
@@ -233,6 +244,11 @@ mod togglsvc {
     }
 
     pub struct Project {
+        pub name: String,
+    }
+
+    pub struct Workspace {
+        pub id: i64,
         pub name: String,
     }
 }
@@ -302,6 +318,15 @@ mod togglapi {
                 .send()?
                 .json()?)
         }
+
+        pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
+            Ok(self
+                .c
+                .get(format!("https://api.track.toggl.com/api/v9/workspaces"))
+                .basic_auth(&self.token, Some("api_token"))
+                .send()?
+                .json()?)
+        }
     }
 
     #[derive(Deserialize, Debug)]
@@ -322,5 +347,11 @@ mod togglapi {
         pub id: Number,
         pub name: String,
         pub workspace_id: Number,
+    }
+
+    #[derive(Deserialize, Debug)]
+    pub struct Workspace {
+        pub id: Number,
+        pub name: String,
     }
 }
