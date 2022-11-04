@@ -215,7 +215,11 @@ mod togglsvc {
             for p in projects {
                 self.project_cache.insert(
                     (workspace_id, p.id.as_i64().expect("parse number as i64")),
-                    Box::new(Project { name: p.name }),
+                    Box::new(Project {
+                        active: p.active,
+                        id: p.id.as_i64().unwrap(),
+                        name: p.name,
+                    }),
                 );
             }
 
@@ -233,11 +237,17 @@ mod togglsvc {
                 self.project_cache.insert(
                     (workspace_id, p.id.as_i64().expect("parse number as i64")),
                     Box::new(Project {
+                        active: p.active,
+                        id: p.id.as_i64().unwrap(),
                         name: p.name.to_string(),
                     }),
                 );
 
-                projects.push(Project { name: p.name });
+                projects.push(Project {
+                    active: p.active,
+                    id: p.id.as_i64().unwrap(),
+                    name: p.name,
+                });
             }
 
             Ok(projects)
@@ -255,6 +265,7 @@ mod togglsvc {
         }
     }
 
+    #[derive(Debug)]
     pub struct TimeEntry {
         pub description: Option<String>,
         pub duration: Duration,
@@ -264,10 +275,14 @@ mod togglsvc {
         pub stop: Option<DateTime<Utc>>,
     }
 
+    #[derive(Debug)]
     pub struct Project {
+        pub active: bool,
+        pub id: i64,
         pub name: String,
     }
 
+    #[derive(Debug)]
     pub struct Workspace {
         pub id: i64,
         pub name: String,
@@ -364,6 +379,7 @@ mod togglapi {
 
     #[derive(Deserialize, Debug)]
     pub struct Project {
+        pub active: bool,
         pub client_id: Option<Number>,
         pub id: Number,
         pub name: String,
