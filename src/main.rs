@@ -122,11 +122,11 @@ fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
 }
 
 mod togglsvc {
-    use super::togglapi;
     use chrono::{DateTime, Duration, TimeZone, Utc};
+    use tgl_cli::api;
 
     pub struct Client {
-        c: togglapi::Client,
+        c: api::Client,
         get_now: fn() -> DateTime<Utc>,
         project_cache: elsa::map::FrozenMap<(i64, i64), Box<Project>>,
     }
@@ -134,7 +134,7 @@ mod togglsvc {
     impl Client {
         pub fn new(token: String, get_now: fn() -> DateTime<Utc>) -> Result<Self, reqwest::Error> {
             Ok(Self {
-                c: togglapi::Client::new(token)?,
+                c: api::Client::new(token)?,
                 get_now,
                 project_cache: elsa::map::FrozenMap::new(),
             })
@@ -152,7 +152,7 @@ mod togglsvc {
 
         fn build_time_entry(
             &self,
-            api_entry: togglapi::TimeEntry,
+            api_entry: api::TimeEntry,
         ) -> Result<TimeEntry, Box<dyn std::error::Error>> {
             let project_id = api_entry.project_id.map(|pid| pid.as_i64().unwrap());
             let project = match project_id {
@@ -285,110 +285,6 @@ mod togglsvc {
     #[derive(Debug)]
     pub struct Workspace {
         pub id: i64,
-        pub name: String,
-    }
-}
-
-mod togglapi {
-    use chrono::NaiveDate;
-    use reqwest::header;
-    use serde::Deserialize;
-    use serde_json::Number;
-
-    pub struct Client {
-        c: reqwest::blocking::Client,
-        token: String,
-    }
-
-    impl Client {
-        pub fn new(token: String) -> Result<Self, reqwest::Error> {
-            let mut headers = header::HeaderMap::new();
-
-            // Toggl API docs indicate that we should always include the JSON
-            // content type header.
-            headers.insert(
-                header::CONTENT_TYPE,
-                header::HeaderValue::from_static("application/json"),
-            );
-
-            Ok(Client {
-                c: reqwest::blocking::Client::builder()
-                    .default_headers(headers)
-                    .build()?,
-                token,
-            })
-        }
-
-        pub fn get_time_entries(
-            &self,
-            start_end_dates: Option<(NaiveDate, NaiveDate)>,
-        ) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
-            let base_url = "https://api.track.toggl.com/api/v9/me/time_entries";
-            let url = match start_end_dates {
-                Some((start_date, end_date)) => {
-                    format!("{base_url}?start_date={start_date}&end_date={end_date}")
-                }
-                None => base_url.to_string(),
-            };
-
-            let recent_entries: Vec<TimeEntry> = self
-                .c
-                .get(url)
-                .basic_auth(&self.token, Some("api_token"))
-                .send()?
-                .json()?;
-
-            Ok(recent_entries)
-        }
-
-        pub fn get_projects(
-            &self,
-            workspace_id: &Number,
-        ) -> Result<Vec<Project>, Box<dyn std::error::Error>> {
-            Ok(self
-                .c
-                .get(format!(
-                    "https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/projects"
-                ))
-                .basic_auth(&self.token, Some("api_token"))
-                .send()?
-                .json()?)
-        }
-
-        pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
-            Ok(self
-                .c
-                .get(format!("https://api.track.toggl.com/api/v9/workspaces"))
-                .basic_auth(&self.token, Some("api_token"))
-                .send()?
-                .json()?)
-        }
-    }
-
-    #[derive(Deserialize, Debug)]
-    pub struct TimeEntry {
-        pub description: Option<String>,
-        pub duration: Number,
-        pub id: Number,
-        pub project_id: Option<Number>,
-        pub start: Option<String>,
-        pub stop: Option<String>,
-        pub task_id: Option<Number>,
-        pub workspace_id: Number,
-    }
-
-    #[derive(Deserialize, Debug)]
-    pub struct Project {
-        pub active: bool,
-        pub client_id: Option<Number>,
-        pub id: Number,
-        pub name: String,
-        pub workspace_id: Number,
-    }
-
-    #[derive(Deserialize, Debug)]
-    pub struct Workspace {
-        pub id: Number,
         pub name: String,
     }
 }
