@@ -1,6 +1,6 @@
 use chrono::NaiveDate;
 use reqwest::header;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
 pub struct Client {
@@ -49,6 +49,23 @@ impl Client {
         Ok(recent_entries)
     }
 
+    pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<(), Error> {
+        let url = format!(
+            "https://api.track.toggl.com/api/v9/workspaces/{}/time_entries",
+            entry.workspace_id
+        );
+        self.c
+            .post(url)
+            .json(&entry)
+            .basic_auth(&self.token, Some("api_token"))
+            .send()
+            .map_err(Error::Reqwest)?
+            .error_for_status()
+            .map_err(Error::Reqwest)?;
+
+        Ok(())
+    }
+
     pub fn get_projects(
         &self,
         workspace_id: &Number,
@@ -73,6 +90,21 @@ impl Client {
     }
 }
 
+#[derive(Debug)]
+pub enum Error {
+    Reqwest(reqwest::Error),
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Reqwest(e) => write!(f, "reqwest: {}", e),
+        }
+    }
+}
+
 #[derive(Deserialize, Debug)]
 pub struct TimeEntry {
     pub description: Option<String>,
@@ -80,6 +112,18 @@ pub struct TimeEntry {
     pub id: Number,
     pub project_id: Option<Number>,
     pub start: Option<String>,
+    pub stop: Option<String>,
+    pub task_id: Option<Number>,
+    pub workspace_id: Number,
+}
+
+#[derive(Serialize, Debug)]
+pub struct NewTimeEntry {
+    pub created_with: String,
+    pub description: Option<String>,
+    pub duration: Number,
+    pub project_id: Option<Number>,
+    pub start: String,
     pub stop: Option<String>,
     pub task_id: Option<Number>,
     pub workspace_id: Number,

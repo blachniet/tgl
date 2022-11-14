@@ -1,6 +1,8 @@
 use crate::api;
 use chrono::{DateTime, Duration, TimeZone, Utc};
 
+const CREATED_WITH: &str = "github.com/blachniet/tgl";
+
 pub struct Client {
     c: api::Client,
     get_now: fn() -> DateTime<Utc>,
@@ -53,6 +55,28 @@ impl Client {
             start,
             stop,
         })
+    }
+
+    pub fn start_time_entry(
+        &self,
+        workspace_id: i64,
+        project_id: Option<i64>,
+        description: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let now = (self.get_now)();
+
+        self.c.create_time_entry(api::NewTimeEntry {
+            created_with: CREATED_WITH.to_string(),
+            description: description.map(|d| d.to_string()),
+            duration: (-now.timestamp()).into(),
+            project_id: project_id.map(|i| i.into()),
+            start: now.to_rfc3339(),
+            stop: None,
+            task_id: None,
+            workspace_id: workspace_id.into(),
+        })?;
+
+        Ok(())
     }
 
     /// Creates a [`chrono::Duration`] from a Toggle API duration.
