@@ -79,6 +79,16 @@ impl Client {
         Ok(entry)
     }
 
+    pub fn stop_current_time_entry(&self) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+        let api_entry = self.c.get_current_entry()?;
+        let api_entry = self
+            .c
+            .stop_time_entry(&api_entry.workspace_id, &api_entry.id)?;
+        let entry = self.build_time_entry(api_entry)?;
+
+        Ok(entry)
+    }
+
     /// Creates a [`chrono::Duration`] from a Toggle API duration.
     ///
     /// Returns a tuple containing the duration value and bool. If the bool

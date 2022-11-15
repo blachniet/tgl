@@ -25,9 +25,7 @@ fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
         Some(Command::Start) => run_start(),
-        Some(Command::Stop) => {
-            todo!("implement stop");
-        }
+        Some(Command::Stop) => run_stop(),
         None => run_status(),
     };
 
@@ -205,6 +203,15 @@ fn run_start() -> Result<(), Error> {
     let entry = client
         .start_time_entry(workspace.id, project_id, Some(&description))
         .map_err(map_svc_err)?;
+
+    println!("{}", fmt_entry(&entry));
+
+    Ok(())
+}
+
+fn run_stop() -> Result<(), Error> {
+    let client = get_client()?;
+    let entry = client.stop_current_time_entry().map_err(map_svc_err)?;
 
     println!("{}", fmt_entry(&entry));
 

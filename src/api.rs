@@ -49,6 +49,15 @@ impl Client {
         Ok(recent_entries)
     }
 
+    pub fn get_current_entry(&self) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+        Ok(self
+            .c
+            .get("https://api.track.toggl.com/api/v9/me/time_entries/current")
+            .basic_auth(&self.token, Some("api_token"))
+            .send()?
+            .json()?)
+    }
+
     pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<TimeEntry, Error> {
         let url = format!(
             "https://api.track.toggl.com/api/v9/workspaces/{}/time_entries",
@@ -59,6 +68,22 @@ impl Client {
             .c
             .post(url)
             .json(&entry)
+            .basic_auth(&self.token, Some("api_token"))
+            .send()?
+            .error_for_status()?
+            .json()?)
+    }
+
+    pub fn stop_time_entry(
+        &self,
+        workspace_id: &Number,
+        time_entry_id: &Number,
+    ) -> Result<TimeEntry, Error> {
+        let url = format!("https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/time_entries/{time_entry_id}/stop");
+
+        Ok(self
+            .c
+            .patch(url)
             .basic_auth(&self.token, Some("api_token"))
             .send()?
             .error_for_status()?
