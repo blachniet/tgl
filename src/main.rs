@@ -202,9 +202,11 @@ fn run_start() -> Result<(), Error> {
         .interact_text()
         .map_err(map_input_err)?;
 
-    client
+    let entry = client
         .start_time_entry(workspace.id, project_id, Some(&description))
         .map_err(map_svc_err)?;
+
+    println!("{}", fmt_entry(&entry));
 
     Ok(())
 }

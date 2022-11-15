@@ -62,10 +62,9 @@ impl Client {
         workspace_id: i64,
         project_id: Option<i64>,
         description: Option<&str>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<TimeEntry, Box<dyn std::error::Error>> {
         let now = (self.get_now)();
-
-        self.c.create_time_entry(api::NewTimeEntry {
+        let api_entry = self.c.create_time_entry(api::NewTimeEntry {
             created_with: CREATED_WITH.to_string(),
             description: description.map(|d| d.to_string()),
             duration: (-now.timestamp()).into(),
@@ -75,8 +74,9 @@ impl Client {
             task_id: None,
             workspace_id: workspace_id.into(),
         })?;
+        let entry = self.build_time_entry(api_entry)?;
 
-        Ok(())
+        Ok(entry)
     }
 
     /// Creates a [`chrono::Duration`] from a Toggle API duration.

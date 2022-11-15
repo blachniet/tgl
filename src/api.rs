@@ -49,21 +49,20 @@ impl Client {
         Ok(recent_entries)
     }
 
-    pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<(), Error> {
+    pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<TimeEntry, Error> {
         let url = format!(
             "https://api.track.toggl.com/api/v9/workspaces/{}/time_entries",
             entry.workspace_id
         );
-        self.c
+
+        Ok(self
+            .c
             .post(url)
             .json(&entry)
             .basic_auth(&self.token, Some("api_token"))
-            .send()
-            .map_err(Error::Reqwest)?
-            .error_for_status()
-            .map_err(Error::Reqwest)?;
-
-        Ok(())
+            .send()?
+            .error_for_status()?
+            .json()?)
     }
 
     pub fn get_projects(
@@ -102,6 +101,12 @@ impl std::fmt::Display for Error {
         match self {
             Error::Reqwest(e) => write!(f, "reqwest: {}", e),
         }
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        Error::Reqwest(e)
     }
 }
 
