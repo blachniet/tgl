@@ -32,7 +32,7 @@ impl Client {
     pub fn get_time_entries(
         &self,
         start_end_dates: Option<(NaiveDate, NaiveDate)>,
-    ) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<TimeEntry>, reqwest::Error> {
         let url = match start_end_dates {
             Some((start_date, end_date)) => {
                 format!(
@@ -42,98 +42,70 @@ impl Client {
             None => format!("{BASE_API_URL}/me/time_entries"),
         };
 
-        let recent_entries: Vec<TimeEntry> = self
-            .c
+        self.c
             .get(url)
             .basic_auth(&self.token, Some("api_token"))
             .send()?
-            .json()?;
-
-        Ok(recent_entries)
+            .error_for_status()?
+            .json::<Vec<TimeEntry>>()
     }
 
-    pub fn get_current_entry(&self) -> Result<TimeEntry, Box<dyn std::error::Error>> {
-        Ok(self
-            .c
+    pub fn get_current_entry(&self) -> Result<TimeEntry, reqwest::Error> {
+        self.c
             .get(format!("{BASE_API_URL}/me/time_entries/current"))
             .basic_auth(&self.token, Some("api_token"))
             .send()?
-            .json()?)
+            .error_for_status()?
+            .json()
     }
 
-    pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<TimeEntry, Error> {
+    pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<TimeEntry, reqwest::Error> {
         let url = format!(
             "{BASE_API_URL}/workspaces/{}/time_entries",
             entry.workspace_id
         );
 
-        Ok(self
-            .c
+        self.c
             .post(url)
             .json(&entry)
             .basic_auth(&self.token, Some("api_token"))
             .send()?
             .error_for_status()?
-            .json()?)
+            .json()
     }
 
     pub fn stop_time_entry(
         &self,
         workspace_id: &Number,
         time_entry_id: &Number,
-    ) -> Result<TimeEntry, Error> {
+    ) -> Result<TimeEntry, reqwest::Error> {
         let url =
             format!("{BASE_API_URL}/workspaces/{workspace_id}/time_entries/{time_entry_id}/stop");
 
-        Ok(self
-            .c
+        self.c
             .patch(url)
             .basic_auth(&self.token, Some("api_token"))
             .send()?
             .error_for_status()?
-            .json()?)
+            .json()
     }
 
-    pub fn get_projects(
-        &self,
-        workspace_id: &Number,
-    ) -> Result<Vec<Project>, Box<dyn std::error::Error>> {
-        Ok(self
-            .c
+    pub fn get_projects(&self, workspace_id: &Number) -> Result<Vec<Project>, reqwest::Error> {
+        self.c
             .get(format!("{BASE_API_URL}/workspaces/{workspace_id}/projects"))
             .basic_auth(&self.token, Some("api_token"))
             .send()?
-            .json()?)
+            .error_for_status()?
+            .json()
     }
 
-    pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
-        Ok(self
-            .c
+    pub fn get_workspaces(&self) -> Result<Vec<Workspace>, reqwest::Error> {
+        self.c
             .get(format!("{BASE_API_URL}/workspaces"))
             .basic_auth(&self.token, Some("api_token"))
             .send()?
-            .json()?)
-    }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    Reqwest(reqwest::Error),
-}
-
-impl std::error::Error for Error {}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Reqwest(e) => write!(f, "reqwest: {}", e),
-        }
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(e: reqwest::Error) -> Self {
-        Error::Reqwest(e)
+            .error_for_status()?
+            .json()
     }
 }
 
