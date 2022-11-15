@@ -212,15 +212,19 @@ fn run_start() -> Result<(), Error> {
 
 fn run_stop() -> Result<(), Error> {
     let client = get_client()?;
-    let entry = client.stop_current_time_entry().map_err(map_svc_err)?;
-
-    println!("{}", fmt_entry(&entry));
+    if let Some(entry) = client.stop_current_time_entry().map_err(map_svc_err)? {
+        println!("{}", fmt_entry(&entry));
+    } else {
+        println!("🤷 No timers running");
+    }
 
     Ok(())
 }
 
 fn map_svc_err(e: tgl_cli::svc::Error) -> Error {
-    Error::new(format!("Trouble talking to Toggl: {e}"))
+    Error::new(format!(
+        "Trouble talking to TogglCouldn't connect to Toggl: {e}"
+    ))
 }
 
 fn map_input_err(e: std::io::Error) -> Error {

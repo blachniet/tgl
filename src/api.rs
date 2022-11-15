@@ -50,7 +50,7 @@ impl Client {
             .json::<Vec<TimeEntry>>()
     }
 
-    pub fn get_current_entry(&self) -> Result<TimeEntry, reqwest::Error> {
+    pub fn get_current_entry(&self) -> Result<Option<TimeEntry>, reqwest::Error> {
         self.c
             .get(format!("{BASE_API_URL}/me/time_entries/current"))
             .basic_auth(&self.token, Some("api_token"))

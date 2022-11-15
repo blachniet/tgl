@@ -76,14 +76,19 @@ impl Client {
         Ok(entry)
     }
 
-    pub fn stop_current_time_entry(&self) -> Result<TimeEntry> {
-        let api_entry = self.c.get_current_entry()?;
-        let api_entry = self
-            .c
-            .stop_time_entry(&api_entry.workspace_id, &api_entry.id)?;
-        let entry = self.build_time_entry(api_entry)?;
+    pub fn stop_current_time_entry(&self) -> Result<Option<TimeEntry>> {
+        if let Some(api_entry) = self.c.get_current_entry()? {
+            println!("Current entry: {:?}", api_entry);
 
-        Ok(entry)
+            let api_entry = self
+                .c
+                .stop_time_entry(&api_entry.workspace_id, &api_entry.id)?;
+            let entry = self.build_time_entry(api_entry)?;
+
+            Ok(Some(entry))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Creates a [`chrono::Duration`] from a Toggle API duration.
