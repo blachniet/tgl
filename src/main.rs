@@ -219,8 +219,8 @@ fn run_stop() -> Result<(), Error> {
     Ok(())
 }
 
-fn map_svc_err(e: Box<dyn std::error::Error>) -> Error {
-    Error::new(format!("Couldn't connect to Toggl: {e}"))
+fn map_svc_err(e: tgl_cli::svc::Error) -> Error {
+    Error::new(format!("Trouble talking to Toggl: {e}"))
 }
 
 fn map_input_err(e: std::io::Error) -> Error {

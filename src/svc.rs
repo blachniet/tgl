@@ -10,7 +10,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(token: String, get_now: fn() -> DateTime<Utc>) -> Result<Self, reqwest::Error> {
+    pub fn new(token: String, get_now: fn() -> DateTime<Utc>) -> Result<Self> {
         Ok(Self {
             c: api::Client::new(token)?,
             get_now,
@@ -18,9 +18,9 @@ impl Client {
         })
     }
 
-    pub fn get_latest_entries(&self) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
+    pub fn get_latest_entries(&self) -> Result<Vec<TimeEntry>> {
         let api_entries = self.c.get_time_entries(None)?;
-        let entries: Result<Vec<_>, _> = api_entries
+        let entries: Result<Vec<_>> = api_entries
             .into_iter()
             .map(|e| self.build_time_entry(e))
             .collect();
@@ -28,10 +28,7 @@ impl Client {
         entries
     }
 
-    fn build_time_entry(
-        &self,
-        api_entry: api::TimeEntry,
-    ) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+    fn build_time_entry(&self, api_entry: api::TimeEntry) -> Result<TimeEntry> {
         let project_id = api_entry.project_id.map(|pid| pid.as_i64().unwrap());
         let project = match project_id {
             Some(pid) => self.get_project(api_entry.workspace_id.as_i64().unwrap(), pid)?,
@@ -62,7 +59,7 @@ impl Client {
         workspace_id: i64,
         project_id: Option<i64>,
         description: Option<&str>,
-    ) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+    ) -> Result<TimeEntry> {
         let now = (self.get_now)();
         let api_entry = self.c.create_time_entry(api::NewTimeEntry {
             created_with: CREATED_WITH.to_string(),
@@ -79,7 +76,7 @@ impl Client {
         Ok(entry)
     }
 
-    pub fn stop_current_time_entry(&self) -> Result<TimeEntry, Box<dyn std::error::Error>> {
+    pub fn stop_current_time_entry(&self) -> Result<TimeEntry> {
         let api_entry = self.c.get_current_entry()?;
         let api_entry = self
             .c
@@ -110,11 +107,7 @@ impl Client {
         }
     }
 
-    fn get_project(
-        &self,
-        workspace_id: i64,
-        project_id: i64,
-    ) -> Result<Option<&Project>, Box<dyn std::error::Error>> {
+    fn get_project(&self, workspace_id: i64, project_id: i64) -> Result<Option<&Project>> {
         let key = (workspace_id, project_id);
         if let Some(project) = self.project_cache.get(&key) {
             return Ok(Some(project));
@@ -136,10 +129,7 @@ impl Client {
         Ok(self.project_cache.get(&key))
     }
 
-    pub fn get_projects(
-        &self,
-        workspace_id: i64,
-    ) -> Result<Vec<Project>, Box<dyn std::error::Error>> {
+    pub fn get_projects(&self, workspace_id: i64) -> Result<Vec<Project>> {
         let api_projects = self.c.get_projects(&workspace_id.into())?;
         let mut projects = Vec::new();
 
@@ -163,7 +153,7 @@ impl Client {
         Ok(projects)
     }
 
-    pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
+    pub fn get_workspaces(&self) -> Result<Vec<Workspace>> {
         let workspaces = self.c.get_workspaces()?;
         Ok(workspaces
             .into_iter()
@@ -174,6 +164,37 @@ impl Client {
             .collect())
     }
 }
+
+#[derive(Debug)]
+pub enum Error {
+    Reqwest(reqwest::Error),
+    ChronoParse(chrono::ParseError),
+}
+
+impl std::error::Error for Error {}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::Reqwest(e) => write!(f, "reqwest: {}", e),
+            Error::ChronoParse(e) => write!(f, "chrono: {}", e),
+        }
+    }
+}
+
+impl From<reqwest::Error> for Error {
+    fn from(e: reqwest::Error) -> Self {
+        Error::Reqwest(e)
+    }
+}
+
+impl From<chrono::ParseError> for Error {
+    fn from(e: chrono::ParseError) -> Self {
+        Error::ChronoParse(e)
+    }
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct TimeEntry {
