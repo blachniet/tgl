@@ -3,6 +3,8 @@ use reqwest::header;
 use serde::{Deserialize, Serialize};
 use serde_json::Number;
 
+static BASE_API_URL: &str = "https://api.track.toggl.com/api/v9";
+
 pub struct Client {
     c: reqwest::blocking::Client,
     token: String,
@@ -31,12 +33,13 @@ impl Client {
         &self,
         start_end_dates: Option<(NaiveDate, NaiveDate)>,
     ) -> Result<Vec<TimeEntry>, Box<dyn std::error::Error>> {
-        let base_url = "https://api.track.toggl.com/api/v9/me/time_entries";
         let url = match start_end_dates {
             Some((start_date, end_date)) => {
-                format!("{base_url}?start_date={start_date}&end_date={end_date}")
+                format!(
+                    "{BASE_API_URL}/me/time_entries?start_date={start_date}&end_date={end_date}"
+                )
             }
-            None => base_url.to_string(),
+            None => format!("{BASE_API_URL}/me/time_entries"),
         };
 
         let recent_entries: Vec<TimeEntry> = self
@@ -52,7 +55,7 @@ impl Client {
     pub fn get_current_entry(&self) -> Result<TimeEntry, Box<dyn std::error::Error>> {
         Ok(self
             .c
-            .get("https://api.track.toggl.com/api/v9/me/time_entries/current")
+            .get(format!("{BASE_API_URL}/me/time_entries/current"))
             .basic_auth(&self.token, Some("api_token"))
             .send()?
             .json()?)
@@ -60,7 +63,7 @@ impl Client {
 
     pub fn create_time_entry(&self, entry: NewTimeEntry) -> Result<TimeEntry, Error> {
         let url = format!(
-            "https://api.track.toggl.com/api/v9/workspaces/{}/time_entries",
+            "{BASE_API_URL}/workspaces/{}/time_entries",
             entry.workspace_id
         );
 
@@ -79,7 +82,8 @@ impl Client {
         workspace_id: &Number,
         time_entry_id: &Number,
     ) -> Result<TimeEntry, Error> {
-        let url = format!("https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/time_entries/{time_entry_id}/stop");
+        let url =
+            format!("{BASE_API_URL}/workspaces/{workspace_id}/time_entries/{time_entry_id}/stop");
 
         Ok(self
             .c
@@ -96,9 +100,7 @@ impl Client {
     ) -> Result<Vec<Project>, Box<dyn std::error::Error>> {
         Ok(self
             .c
-            .get(format!(
-                "https://api.track.toggl.com/api/v9/workspaces/{workspace_id}/projects"
-            ))
+            .get(format!("{BASE_API_URL}/workspaces/{workspace_id}/projects"))
             .basic_auth(&self.token, Some("api_token"))
             .send()?
             .json()?)
@@ -107,7 +109,7 @@ impl Client {
     pub fn get_workspaces(&self) -> Result<Vec<Workspace>, Box<dyn std::error::Error>> {
         Ok(self
             .c
-            .get("https://api.track.toggl.com/api/v9/workspaces".to_string())
+            .get(format!("{BASE_API_URL}/workspaces"))
             .basic_auth(&self.token, Some("api_token"))
             .send()?
             .json()?)
