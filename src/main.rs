@@ -65,12 +65,13 @@ fn get_api_token() -> Result<String, Error> {
                     .with_prompt("Enter your API token from https://track.toggl.com/profile")
                     .with_confirmation("Confirm token", "Tokens don't match")
                     .interact()
-                    .map_err(|e| Error::new(format!("Couldn't read the password: {}", e).into()))?;
+                    .map_err(|e| Error::new(format!("Couldn't read the password: {}", e)))?;
 
                 entry.set_password(&token).map_err(|e| {
-                    Error::new(
-                        format!("Couldn't save the API token your keyring/keychain: {}", e).into(),
-                    )
+                    Error::new(format!(
+                        "Couldn't save the API token your keyring/keychain: {}",
+                        e
+                    ))
                 })?;
 
                 Ok(token)
