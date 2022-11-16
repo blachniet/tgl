@@ -178,8 +178,9 @@ fn run_start() -> Result<(), Error> {
     let workspaces = client.get_workspaces().map_err(map_svc_err)?;
     let workspace_names: Vec<_> = workspaces.iter().map(|w| w.name.to_string()).collect();
     let workspace_idx = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("Select a workspace:")
+        .with_prompt("Select a workspace")
         .items(&workspace_names)
+        .default(0)
         .interact_on_opt(&dialoguer::console::Term::stderr())
         .map_err(map_input_err)?
         .ok_or_else(|| Error::new("You must select a workspace.".to_string()))?;
@@ -189,15 +190,15 @@ fn run_start() -> Result<(), Error> {
     let projects: Vec<_> = projects.iter().filter(|p| p.active).collect();
     let project_names: Vec<_> = projects.iter().map(|p| p.name.to_string()).collect();
     let project_idx = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("Select a project or press 'q' to skip:")
+        .with_prompt("Select a project or press 'q' to skip")
         .items(&project_names)
         .interact_on_opt(&dialoguer::console::Term::stderr())
         .map_err(map_input_err)?;
 
     let project_id = project_idx.map(|i| projects[i].id);
     let description: String = dialoguer::Input::new()
-        .with_prompt("Enter a description or press 'q' to skip:")
-        .default("".into())
+        .with_prompt("Enter a description (optional)")
+        .allow_empty(true)
         .interact_text()
         .map_err(map_input_err)?;
 
