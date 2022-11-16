@@ -202,13 +202,11 @@ fn run_start() -> Result<(), Error> {
         .interact_text()
         .map_err(map_input_err)?;
 
-    let entry = client
+    client
         .start_time_entry(workspace.id, project_id, Some(&description))
         .map_err(map_svc_err)?;
 
-    println!("{}", fmt_entry(&entry));
-
-    Ok(())
+    run_status()
 }
 
 fn run_stop() -> Result<(), Error> {
@@ -219,7 +217,7 @@ fn run_stop() -> Result<(), Error> {
         println!("🤷 No timers running");
     }
 
-    Ok(())
+    run_status()
 }
 
 fn map_svc_err(e: tgl_cli::svc::Error) -> Error {
