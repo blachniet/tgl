@@ -118,9 +118,13 @@ fn fmt_start_stop(entry: &TimeEntry) -> String {
         let start: DateTime<Local> = DateTime::from(start);
         if let Some(stop) = entry.stop {
             let stop: DateTime<Local> = DateTime::from(stop);
-            format!("{start} / {stop}")
+            format!(
+                "{} - {}",
+                start.time().format("%H:%M"),
+                stop.time().format("%H:%M")
+            )
         } else {
-            format!("{start} / ...")
+            format!("{} -  ... ", start.time().format("%H:%M"))
         }
     } else {
         "".to_string()
