@@ -35,4 +35,15 @@ read -sx TOGGL_API_TOKEN
 tgl
 ```
 
+## Contributing
+
+### Release checklist
+
+Use [cargo-release][2] to deploy new releases.
+
+```sh
+cargo-release release minor
+```
+
 [1]: https://crates.io/crates/tgl-cli
+[2]: https://github.com/crate-ci/cargo-release
