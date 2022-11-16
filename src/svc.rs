@@ -78,8 +78,6 @@ impl Client {
 
     pub fn stop_current_time_entry(&self) -> Result<Option<TimeEntry>> {
         if let Some(api_entry) = self.c.get_current_entry()? {
-            println!("Current entry: {:?}", api_entry);
-
             let api_entry = self
                 .c
                 .stop_time_entry(&api_entry.workspace_id, &api_entry.id)?;
