@@ -48,9 +48,11 @@ impl Client {
             description: api_entry.description,
             duration,
             is_running,
+            project_id,
             project_name: project.map(|p| p.name.to_string()),
             start,
             stop,
+            workspace_id: api_entry.workspace_id.as_i64().unwrap(),
         })
     }
 
@@ -204,9 +206,11 @@ pub struct TimeEntry {
     pub description: Option<String>,
     pub duration: Duration,
     pub is_running: bool,
+    pub project_id: Option<i64>,
     pub project_name: Option<String>,
     pub start: Option<DateTime<Utc>>,
     pub stop: Option<DateTime<Utc>>,
+    pub workspace_id: i64,
 }
 
 #[derive(Debug)]

@@ -19,6 +19,8 @@ enum Command {
     Start,
     /// Stop the current time entry
     Stop,
+    /// Restart the latest time entry
+    Restart,
 }
 
 fn main() {
@@ -26,6 +28,7 @@ fn main() {
     let result = match &cli.command {
         Some(Command::Start) => run_start(),
         Some(Command::Stop) => run_stop(),
+        Some(Command::Restart) => run_restart(),
         None => run_status(),
     };
 
@@ -216,6 +219,24 @@ fn run_stop() -> Result<(), Error> {
         .is_none()
     {
         println!("🤷 No timers running\n");
+    }
+
+    run_status()
+}
+
+fn run_restart() -> Result<(), Error> {
+    let client = get_client()?;
+    let recent_entries = client.get_latest_entries().map_err(map_svc_err)?;
+    if let Some(last_entry) = recent_entries.first() {
+        client
+            .start_time_entry(
+                last_entry.workspace_id,
+                last_entry.project_id,
+                last_entry.description.as_deref(),
+            )
+            .map_err(map_svc_err)?;
+    } else {
+        return Err("🤷 Recent entries to restart".into());
     }
 
     run_status()
