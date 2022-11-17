@@ -95,7 +95,7 @@ fn println_entry(entry: &TimeEntry) {
     if let Some(project_name) = &entry.project_name {
         println!("{} {}", fmt_duration(entry.duration), project_name);
     } else {
-        println!("{}", fmt_duration(entry.duration));
+        println!("{} <no project>", fmt_duration(entry.duration));
     }
 
     if let Some(description) = &entry.description {
@@ -123,7 +123,7 @@ fn fmt_start_stop(entry: &TimeEntry) -> String {
                 stop.time().format("%H:%M")
             )
         } else {
-            format!("{} -  ... ", start.time().format("%H:%M"))
+            format!("{} - ...", start.time().format("%H:%M"))
         }
     } else {
         String::new()
