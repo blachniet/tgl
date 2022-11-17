@@ -1,3 +1,5 @@
+//! High-level client for interacting with Toggl. Uses the [api].
+
 use crate::api;
 use chrono::{DateTime, Duration, TimeZone, Utc};
 

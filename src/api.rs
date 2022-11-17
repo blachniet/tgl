@@ -1,3 +1,5 @@
+//! Low-level client for interacting with the [Toggl API](https://developers.track.toggl.com/docs/).
+
 use chrono::NaiveDate;
 use reqwest::header;
 use serde::{Deserialize, Serialize};
@@ -5,12 +7,14 @@ use serde_json::Number;
 
 static BASE_API_URL: &str = "https://api.track.toggl.com/api/v9";
 
+/// Low-level client for interacting with the [Toggl API](https://developers.track.toggl.com/docs/).
 pub struct Client {
     c: reqwest::blocking::Client,
     token: String,
 }
 
 impl Client {
+    /// Creates a new client with the given API token.
     pub fn new(token: String) -> Result<Self, reqwest::Error> {
         let mut headers = header::HeaderMap::new();
 

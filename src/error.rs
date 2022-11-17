@@ -1,9 +1,13 @@
+//! Defines the error type for top-level CLI commands.
+
+/// Error type for top-level CLI commands.
 #[derive(Debug)]
 pub struct Error {
     pub message: String,
 }
 
 impl Error {
+    /// Creates a new entry with the given message.
     pub fn new(message: String) -> Self {
         Self { message }
     }
