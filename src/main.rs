@@ -86,26 +86,25 @@ fn get_api_token() -> Result<String, Error> {
     Ok(token)
 }
 
-fn fmt_entry(entry: &TimeEntry) -> String {
-    let icon = match entry.is_running {
-        true => "🏃",
-        false => "- ",
+fn println_entry(entry: &TimeEntry) {
+    match entry.is_running {
+        true => print!("🏃"),
+        false => print!("- "),
     };
-    let duration = fmt_duration(entry.duration);
-    let project_name = entry
-        .project_name
-        .as_ref()
-        .map_or("<no project>".to_string(), |n| n.to_string());
-    let description = entry.description.as_ref().map_or("".to_string(), |d| {
-        if d.is_empty() {
-            "".to_string()
-        } else {
-            format!("- {d}")
-        }
-    });
-    let start_stop = fmt_start_stop(entry);
 
-    format!("{icon} {duration} {project_name} {description} {start_stop}")
+    if let Some(project_name) = &entry.project_name {
+        println!("{} {}", fmt_duration(entry.duration), project_name);
+    } else {
+        println!("{}", fmt_duration(entry.duration));
+    }
+
+    if let Some(description) = &entry.description {
+        if !description.is_empty() {
+            println!("          {}", description);
+        }
+    }
+
+    println!("          {}", fmt_start_stop(entry));
 }
 
 fn fmt_duration(dur: Duration) -> String {
@@ -127,7 +126,7 @@ fn fmt_start_stop(entry: &TimeEntry) -> String {
             format!("{} -  ... ", start.time().format("%H:%M"))
         }
     } else {
-        "".to_string()
+        String::new()
     }
 }
 
@@ -162,13 +161,9 @@ fn run_status() -> Result<(), Error> {
 
         false
     }) {
-        println!("{}", fmt_entry(entry));
+        println_entry(entry);
         dur_today = dur_today + entry.duration;
         is_running = is_running || entry.is_running;
-    }
-
-    if !is_running {
-        println!("🤷 No timers running");
     }
 
     let dur_today = fmt_duration(dur_today);
@@ -215,10 +210,12 @@ fn run_start() -> Result<(), Error> {
 
 fn run_stop() -> Result<(), Error> {
     let client = get_client()?;
-    if let Some(entry) = client.stop_current_time_entry().map_err(map_svc_err)? {
-        println!("{}", fmt_entry(&entry));
-    } else {
-        println!("🤷 No timers running");
+    if client
+        .stop_current_time_entry()
+        .map_err(map_svc_err)?
+        .is_none()
+    {
+        println!("🤷 No timers running\n");
     }
 
     run_status()
