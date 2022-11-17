@@ -42,7 +42,8 @@ tgl
 Use [cargo-release][2] to deploy new releases.
 
 ```sh
-cargo-release release minor
+cargo-release release minor [--execute]
+gh release create --generate-notes
 ```
 
 [1]: https://crates.io/crates/tgl-cli
