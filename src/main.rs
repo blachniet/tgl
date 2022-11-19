@@ -168,8 +168,21 @@ fn run_status() -> Result<(), Error> {
         is_running = is_running || entry.is_running;
     }
 
-    let dur_today = fmt_duration(dur_today);
-    println!("\n⏱  {dur_today} logged today");
+    println!();
+    print!("⏱  {} logged today.", fmt_duration(dur_today));
+
+    if is_running {
+        let target_dur = Duration::hours(8);
+        let dur_remaining = target_dur - dur_today;
+        let target_time = (Local::now() + dur_remaining).time();
+        println!(
+            " You'll reach {} logged at {}.",
+            fmt_duration(target_dur),
+            target_time.format("%H:%M")
+        );
+    } else {
+        println!();
+    }
 
     Ok(())
 }
