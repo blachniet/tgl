@@ -90,24 +90,13 @@ fn get_api_token() -> Result<String, Error> {
 }
 
 fn println_entry(entry: &TimeEntry) {
-    match entry.is_running {
-        true => print!("🏃"),
-        false => print!("- "),
-    };
-
-    if let Some(project_name) = &entry.project_name {
-        println!("{} {}", fmt_duration(entry.duration), project_name);
-    } else {
-        println!("{} <no project>", fmt_duration(entry.duration));
-    }
-
-    if let Some(description) = &entry.description {
-        if !description.is_empty() {
-            println!("          {}", description);
-        }
-    }
-
-    println!("          {}", fmt_start_stop(entry));
+    println!(
+        "{} ({}) [{}] {}",
+        fmt_duration(entry.duration),
+        fmt_start_stop(entry),
+        entry.project_name.as_ref().unwrap_or(&"".to_string()),
+        entry.description.as_ref().unwrap_or(&"".to_string()),
+    );
 }
 
 fn fmt_duration(dur: Duration) -> String {
@@ -126,7 +115,7 @@ fn fmt_start_stop(entry: &TimeEntry) -> String {
                 stop.time().format("%H:%M")
             )
         } else {
-            format!("{} - ...", start.time().format("%H:%M"))
+            format!("{} - ⏳:⏳", start.time().format("%H:%M"))
         }
     } else {
         String::new()
