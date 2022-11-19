@@ -21,6 +21,8 @@ enum Command {
     Stop,
     /// Restart the latest time entry
     Restart,
+    /// Delete the Toggl API token saved in the keyring/keychain
+    DeleteApiToken,
 }
 
 fn main() {
@@ -29,6 +31,7 @@ fn main() {
         Some(Command::Start) => run_start(),
         Some(Command::Stop) => run_stop(),
         Some(Command::Restart) => run_restart(),
+        Some(Command::DeleteApiToken) => run_delete_api_token(),
         None => run_status(),
     };
 
@@ -49,6 +52,10 @@ fn get_client() -> Result<Client, Error> {
     })
 }
 
+fn keyring_entry() -> keyring::Entry {
+    keyring::Entry::new("github.com/blachniet/tgl", "api_token")
+}
+
 fn get_api_token() -> Result<String, Error> {
     // Look for the token in an environment variable.
     let token = env::var("TOGGL_API_TOKEN");
@@ -59,7 +66,7 @@ fn get_api_token() -> Result<String, Error> {
     }
 
     // Look for the token in the keyring.
-    let entry = keyring::Entry::new("github.com/blachniet/tgl", "api_token");
+    let entry = keyring_entry();
     let token = match entry.get_password() {
         Ok(token) => Ok(token),
         Err(err) => match err {
@@ -229,6 +236,14 @@ fn run_restart() -> Result<(), Error> {
     }
 
     run_status()
+}
+
+fn run_delete_api_token() -> Result<(), Error> {
+    keyring_entry()
+        .delete_password()
+        .map_err(|e| Error::new(format!("Error deleting keyring entry: {e}")))?;
+
+    Ok(())
 }
 
 fn map_svc_err(e: tgl_cli::svc::Error) -> Error {
