@@ -15,6 +15,8 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Get the current status of Toggl timers for today
+    Status,
     /// Start a new time entry
     Start,
     /// Stop the current time entry
@@ -28,6 +30,7 @@ enum Command {
 fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
+        Some(Command::Status) => run_status(),
         Some(Command::Start) => run_start(),
         Some(Command::Stop) => run_stop(),
         Some(Command::Restart) => run_restart(),
