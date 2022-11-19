@@ -225,7 +225,7 @@ fn run_restart() -> Result<(), Error> {
             )
             .map_err(map_svc_err)?;
     } else {
-        return Err("🤷 Recent entries to restart".into());
+        return Err("🤷 No recent entries to restart".into());
     }
 
     run_status()
