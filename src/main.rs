@@ -1,10 +1,8 @@
+use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Duration, Local, Utc};
 use clap::{Parser, Subcommand};
-use std::{env, process::exit};
-use tgl_cli::{
-    error::Error,
-    svc::{Client, TimeEntry},
-};
+use std::env;
+use tgl_cli::svc::{Client, TimeEntry};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -27,39 +25,30 @@ enum Command {
     DeleteApiToken,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let cli = Cli::parse();
-    let result = match &cli.command {
+
+    match &cli.command {
         Some(Command::Status) => run_status(),
         Some(Command::Start) => run_start(),
         Some(Command::Stop) => run_stop(),
         Some(Command::Restart) => run_restart(),
         Some(Command::DeleteApiToken) => run_delete_api_token(),
         None => run_status(),
-    };
-
-    if let Err(err) = result {
-        if !err.message.is_empty() {
-            println!("{}", err.message);
-        }
-
-        exit(1);
     }
 }
 
-fn get_client() -> Result<Client, Error> {
+fn get_client() -> Result<Client> {
     let token = get_api_token()?;
 
-    Client::new(token, Utc::now).map_err(|e| Error {
-        message: format!("Could not connect to Toggl: {}", e),
-    })
+    Client::new(token, Utc::now).context("Failed to create Toggle API client")
 }
 
 fn keyring_entry() -> keyring::Entry {
     keyring::Entry::new("github.com/blachniet/tgl", "api_token")
 }
 
-fn get_api_token() -> Result<String, Error> {
+fn get_api_token() -> Result<String> {
     // Look for the token in an environment variable.
     let token = env::var("TOGGL_API_TOKEN");
     if let Ok(token) = token {
@@ -70,29 +59,24 @@ fn get_api_token() -> Result<String, Error> {
 
     // Look for the token in the keyring.
     let entry = keyring_entry();
-    let token = match entry.get_password() {
+    let result = entry.get_password();
+    let token = match result {
         Ok(token) => Ok(token),
-        Err(err) => match err {
+        Err(ref err) => match err {
             keyring::Error::NoEntry => {
                 let token = dialoguer::Password::new()
                     .with_prompt("Enter your API token from https://track.toggl.com/profile")
                     .with_confirmation("Confirm token", "Tokens don't match")
                     .interact()
-                    .map_err(|e| Error::new(format!("Couldn't read the password: {}", e)))?;
+                    .context("Failed to read API token from keyring/keychain")?;
 
-                entry.set_password(&token).map_err(|e| {
-                    Error::new(format!(
-                        "Couldn't save the API token your keyring/keychain: {}",
-                        e
-                    ))
-                })?;
+                entry
+                    .set_password(&token)
+                    .context("Failed to save the API token to the keyring/keychain")?;
 
                 Ok(token)
             }
-            _ => Err(Error::new(format!(
-                "Couldn't read from your keyring/keychain: {}",
-                err
-            ))),
+            _ => result.context("Failed to read from your keyring/keychain"),
         },
     }?;
 
@@ -139,11 +123,13 @@ fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
     (dur.num_hours(), minutes, seconds)
 }
 
-fn run_status() -> Result<(), Error> {
+fn run_status() -> Result<()> {
     let client = get_client()?;
     let today = Local::today().and_hms(0, 0, 0);
     let tomorrow = Local::today().succ().and_hms(0, 0, 0);
-    let mut latest_entries = client.get_latest_entries().map_err(map_svc_err)?;
+    let mut latest_entries = client
+        .get_latest_entries()
+        .context("Failed to retrieve time entries")?;
     latest_entries.sort_unstable_by_key(|e| e.start);
 
     let mut is_running = false;
@@ -187,47 +173,51 @@ fn run_status() -> Result<(), Error> {
     Ok(())
 }
 
-fn run_start() -> Result<(), Error> {
+fn run_start() -> Result<()> {
     let client = get_client()?;
-    let workspaces = client.get_workspaces().map_err(map_svc_err)?;
+    let workspaces = client
+        .get_workspaces()
+        .context("Failed to retrieve workspaces")?;
     let workspace_names: Vec<_> = workspaces.iter().map(|w| w.name.to_string()).collect();
     let workspace_idx = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
         .with_prompt("Select a workspace")
         .items(&workspace_names)
         .default(0)
         .interact_on_opt(&dialoguer::console::Term::stderr())
-        .map_err(map_input_err)?
-        .ok_or_else(|| Error::new("You must select a workspace.".to_string()))?;
+        .context("Failed to read workspace input")?
+        .ok_or_else(|| anyhow!("You must select a workspace"))?;
 
     let workspace = &workspaces[workspace_idx];
-    let projects = client.get_projects(workspace.id).map_err(map_svc_err)?;
+    let projects = client
+        .get_projects(workspace.id)
+        .context("Failed to get projects")?;
     let projects: Vec<_> = projects.iter().filter(|p| p.active).collect();
     let project_names: Vec<_> = projects.iter().map(|p| p.name.to_string()).collect();
     let project_idx = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
         .with_prompt("Select a project or press 'q' to skip")
         .items(&project_names)
         .interact_on_opt(&dialoguer::console::Term::stderr())
-        .map_err(map_input_err)?;
+        .context("Failed to read project selection")?;
 
     let project_id = project_idx.map(|i| projects[i].id);
     let description: String = dialoguer::Input::new()
         .with_prompt("Enter a description (optional)")
         .allow_empty(true)
         .interact_text()
-        .map_err(map_input_err)?;
+        .context("Failed to read description input")?;
 
     client
         .start_time_entry(workspace.id, project_id, Some(&description))
-        .map_err(map_svc_err)?;
+        .context("Failed to start time entry")?;
 
     run_status()
 }
 
-fn run_stop() -> Result<(), Error> {
+fn run_stop() -> Result<()> {
     let client = get_client()?;
     if client
         .stop_current_time_entry()
-        .map_err(map_svc_err)?
+        .context("Failed to stop current time entry")?
         .is_none()
     {
         println!("🤷 No timers running\n");
@@ -236,9 +226,11 @@ fn run_stop() -> Result<(), Error> {
     run_status()
 }
 
-fn run_restart() -> Result<(), Error> {
+fn run_restart() -> Result<()> {
     let client = get_client()?;
-    let recent_entries = client.get_latest_entries().map_err(map_svc_err)?;
+    let recent_entries = client
+        .get_latest_entries()
+        .context("Failed to retrieve latest time entries")?;
     if let Some(last_entry) = recent_entries.first() {
         client
             .start_time_entry(
@@ -246,28 +238,16 @@ fn run_restart() -> Result<(), Error> {
                 last_entry.project_id,
                 last_entry.description.as_deref(),
             )
-            .map_err(map_svc_err)?;
+            .context("Failed to start time entry")?;
     } else {
-        return Err("🤷 No recent entries to restart".into());
+        bail!("🤷 No recent entries to restart");
     }
 
     run_status()
 }
 
-fn run_delete_api_token() -> Result<(), Error> {
+fn run_delete_api_token() -> Result<()> {
     keyring_entry()
         .delete_password()
-        .map_err(|e| Error::new(format!("Error deleting keyring entry: {e}")))?;
-
-    Ok(())
-}
-
-fn map_svc_err(e: tgl_cli::svc::Error) -> Error {
-    Error::new(format!(
-        "Trouble talking to TogglCouldn't connect to Toggl: {e}"
-    ))
-}
-
-fn map_input_err(e: std::io::Error) -> Error {
-    Error::new(format!("Couldn't read that input: {e}"))
+        .context("Failed to delete API token from keyring/keychain")
 }

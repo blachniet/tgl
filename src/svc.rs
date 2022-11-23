@@ -172,33 +172,12 @@ impl Client {
     }
 }
 
-#[derive(Debug)]
+#[derive(thiserror::Error, Debug)]
 pub enum Error {
-    Reqwest(reqwest::Error),
-    ChronoParse(chrono::ParseError),
-}
-
-impl std::error::Error for Error {}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Error::Reqwest(e) => write!(f, "reqwest: {}", e),
-            Error::ChronoParse(e) => write!(f, "chrono: {}", e),
-        }
-    }
-}
-
-impl From<reqwest::Error> for Error {
-    fn from(e: reqwest::Error) -> Self {
-        Error::Reqwest(e)
-    }
-}
-
-impl From<chrono::ParseError> for Error {
-    fn from(e: chrono::ParseError) -> Self {
-        Error::ChronoParse(e)
-    }
+    #[error("reqwest error")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("chrono parse error")]
+    ChronoParse(#[from] chrono::ParseError),
 }
 
 type Result<T> = std::result::Result<T, Error>;
