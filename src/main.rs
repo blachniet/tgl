@@ -1,6 +1,7 @@
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Datelike, Days, Duration, Local, TimeZone, Utc};
 use clap::{Parser, Subcommand};
+use dialoguer::theme::Theme;
 use std::env;
 use tgl_cli::svc::{Client, TimeEntry};
 
@@ -182,14 +183,27 @@ fn run_start() -> Result<()> {
         .get_workspaces()
         .context("Failed to retrieve workspaces")?;
     let workspace_names: Vec<_> = workspaces.iter().map(|w| w.name.to_string()).collect();
-    let workspace_idx =
-        dialoguer::FuzzySelect::with_theme(&dialoguer::theme::ColorfulTheme::default())
+    let workspace_idx = match workspace_names.len() {
+        0 => Err(anyhow!("No Toggl workspaces found")),
+        1 => {
+            let mut buf = String::new();
+            dialoguer::theme::ColorfulTheme::default().format_input_prompt_selection(
+                &mut buf,
+                "Using only workspace",
+                &workspace_names[0],
+            )?;
+            dialoguer::console::Term::stderr().write_line(&buf)?;
+
+            Ok(0)
+        }
+        _ => dialoguer::FuzzySelect::with_theme(&dialoguer::theme::ColorfulTheme::default())
             .with_prompt("Select a workspace")
             .items(&workspace_names)
             .default(0)
             .interact_on_opt(&dialoguer::console::Term::stderr())
             .context("Failed to read workspace input")?
-            .ok_or_else(|| anyhow!("You must select a workspace"))?;
+            .ok_or_else(|| anyhow!("You must select a workspace")),
+    }?;
 
     let workspace = &workspaces[workspace_idx];
     let projects = client
