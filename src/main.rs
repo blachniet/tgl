@@ -1,5 +1,5 @@
 use anyhow::{anyhow, bail, Context, Result};
-use chrono::{DateTime, Duration, Local, Utc};
+use chrono::{DateTime, Datelike, Days, Duration, Local, TimeZone, Utc};
 use clap::{Parser, Subcommand};
 use std::env;
 use tgl_cli::svc::{Client, TimeEntry};
@@ -125,8 +125,11 @@ fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
 
 fn run_status() -> Result<()> {
     let client = get_client()?;
-    let today = Local::today().and_hms(0, 0, 0);
-    let tomorrow = Local::today().succ().and_hms(0, 0, 0);
+    let now = Local::now();
+    let today = Local
+        .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+        .unwrap();
+    let tomorrow = today.checked_add_days(Days::new(1)).unwrap();
     let mut latest_entries = client
         .get_latest_entries()
         .context("Failed to retrieve time entries")?;
@@ -150,7 +153,7 @@ fn run_status() -> Result<()> {
         false
     }) {
         println_entry(entry);
-        dur_today = dur_today + entry.duration;
+        dur_today += entry.duration;
         is_running = is_running || entry.is_running;
     }
 
