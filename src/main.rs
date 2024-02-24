@@ -178,6 +178,8 @@ fn run_status() -> Result<()> {
 }
 
 fn run_start() -> Result<()> {
+    let theme = dialoguer::theme::ColorfulTheme::default();
+    let term = dialoguer::console::Term::stderr();
     let client = get_client()?;
     let workspaces = client
         .get_workspaces()
@@ -187,20 +189,20 @@ fn run_start() -> Result<()> {
         0 => Err(anyhow!("No Toggl workspaces found")),
         1 => {
             let mut buf = String::new();
-            dialoguer::theme::ColorfulTheme::default().format_input_prompt_selection(
+            theme.format_input_prompt_selection(
                 &mut buf,
                 "Using only workspace",
                 &workspace_names[0],
             )?;
-            dialoguer::console::Term::stderr().write_line(&buf)?;
+            term.write_line(&buf)?;
 
             Ok(0)
         }
-        _ => dialoguer::FuzzySelect::with_theme(&dialoguer::theme::ColorfulTheme::default())
+        _ => dialoguer::FuzzySelect::with_theme(&theme)
             .with_prompt("Select a workspace")
             .items(&workspace_names)
             .default(0)
-            .interact_on_opt(&dialoguer::console::Term::stderr())
+            .interact_on_opt(&term)
             .context("Failed to read workspace input")?
             .ok_or_else(|| anyhow!("You must select a workspace")),
     }?;
@@ -211,12 +213,11 @@ fn run_start() -> Result<()> {
         .context("Failed to get projects")?;
     let projects: Vec<_> = projects.iter().filter(|p| p.active).collect();
     let project_names: Vec<_> = projects.iter().map(|p| p.name.to_string()).collect();
-    let project_idx =
-        dialoguer::FuzzySelect::with_theme(&dialoguer::theme::ColorfulTheme::default())
-            .with_prompt("Select a project or press 'Esc' to skip")
-            .items(&project_names)
-            .interact_on_opt(&dialoguer::console::Term::stderr())
-            .context("Failed to read project selection")?;
+    let project_idx = dialoguer::FuzzySelect::with_theme(&theme)
+        .with_prompt("Select a project or press 'Esc' to skip")
+        .items(&project_names)
+        .interact_on_opt(&term)
+        .context("Failed to read project selection")?;
 
     let project_id = project_idx.map(|i| projects[i].id);
     let description: String = dialoguer::Input::new()
