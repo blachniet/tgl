@@ -5,6 +5,9 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  schedule:
+  - cron: '24 3 3 * *'  # To check for cargo audit issues
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -20,3 +23,5 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Audit
+      run: cargo audit --verbose
