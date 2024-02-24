@@ -182,13 +182,14 @@ fn run_start() -> Result<()> {
         .get_workspaces()
         .context("Failed to retrieve workspaces")?;
     let workspace_names: Vec<_> = workspaces.iter().map(|w| w.name.to_string()).collect();
-    let workspace_idx = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("Select a workspace")
-        .items(&workspace_names)
-        .default(0)
-        .interact_on_opt(&dialoguer::console::Term::stderr())
-        .context("Failed to read workspace input")?
-        .ok_or_else(|| anyhow!("You must select a workspace"))?;
+    let workspace_idx =
+        dialoguer::FuzzySelect::with_theme(&dialoguer::theme::ColorfulTheme::default())
+            .with_prompt("Select a workspace")
+            .items(&workspace_names)
+            .default(0)
+            .interact_on_opt(&dialoguer::console::Term::stderr())
+            .context("Failed to read workspace input")?
+            .ok_or_else(|| anyhow!("You must select a workspace"))?;
 
     let workspace = &workspaces[workspace_idx];
     let projects = client
@@ -196,11 +197,12 @@ fn run_start() -> Result<()> {
         .context("Failed to get projects")?;
     let projects: Vec<_> = projects.iter().filter(|p| p.active).collect();
     let project_names: Vec<_> = projects.iter().map(|p| p.name.to_string()).collect();
-    let project_idx = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-        .with_prompt("Select a project or press 'q' to skip")
-        .items(&project_names)
-        .interact_on_opt(&dialoguer::console::Term::stderr())
-        .context("Failed to read project selection")?;
+    let project_idx =
+        dialoguer::FuzzySelect::with_theme(&dialoguer::theme::ColorfulTheme::default())
+            .with_prompt("Select a project or press 'Esc' to skip")
+            .items(&project_names)
+            .interact_on_opt(&dialoguer::console::Term::stderr())
+            .context("Failed to read project selection")?;
 
     let project_id = project_idx.map(|i| projects[i].id);
     let description: String = dialoguer::Input::new()
