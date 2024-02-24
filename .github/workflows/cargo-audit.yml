@@ -1,6 +1,7 @@
 name: Cargo Audit
 
 on:
+  workflow_dispatch:
   schedule:
   - cron: '24 3 3 * *'
 
