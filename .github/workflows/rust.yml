@@ -24,4 +24,4 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: Audit
-      run: cargo audit --verbose
+      run: cargo audit
