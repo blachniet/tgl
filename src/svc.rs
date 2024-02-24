@@ -36,7 +36,7 @@ impl Client {
             Some(pid) => self.get_project(api_entry.workspace_id.as_i64().unwrap(), pid)?,
             None => None,
         };
-        let (duration, is_running) = self.parse_duration(api_entry.duration);
+        let (duration, is_running) = parse_duration((self.get_now)(), api_entry.duration);
         let start: Option<DateTime<Utc>> = match api_entry.start {
             Some(s) => Some(s.parse()?),
             None => None,
@@ -90,27 +90,6 @@ impl Client {
             Ok(Some(entry))
         } else {
             Ok(None)
-        }
-    }
-
-    /// Creates a [`chrono::Duration`] from a Toggle API duration.
-    ///
-    /// Returns a tuple containing the duration value and bool. If the bool
-    /// is `true`, then the associated timer was running. If the bool is
-    /// `false`, then the associated timer was not running.
-    ///
-    /// Panics if `duration` cannot be represented as an `i64`.
-    fn parse_duration(&self, duration: serde_json::Number) -> (Duration, bool) {
-        let duration = duration.as_i64().unwrap();
-        if duration < 0 {
-            (
-                // Running entry is represented as the negative epoch timestamp
-                // of the start time.
-                (self.get_now)() - Utc.timestamp(-duration, 0),
-                true,
-            )
-        } else {
-            (Duration::seconds(duration), false)
         }
     }
 
@@ -172,6 +151,27 @@ impl Client {
     }
 }
 
+/// Creates a [`chrono::Duration`] from a Toggle API duration.
+///
+/// Returns a tuple containing the duration value and bool. If the bool
+/// is `true`, then the associated timer was running. If the bool is
+/// `false`, then the associated timer was not running.
+///
+/// Panics if `duration` cannot be represented as an `i64` or is out-of-range.
+fn parse_duration(now: DateTime<Utc>, duration: serde_json::Number) -> (Duration, bool) {
+    let duration = duration.as_i64().unwrap();
+    if duration < 0 {
+        (
+            // Running entry is represented as the negative epoch timestamp
+            // of the start time.
+            now - Utc.timestamp_opt(-duration, 0).unwrap(),
+            true,
+        )
+    } else {
+        (Duration::seconds(duration), false)
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error("reqwest error")]
@@ -205,4 +205,29 @@ pub struct Project {
 pub struct Workspace {
     pub id: i64,
     pub name: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_duration_stopped() {
+        let now = Utc.timestamp_opt(1404810600, 0).unwrap();
+        let (dur, is_running) = parse_duration(now, 30.into());
+
+        assert!(!is_running);
+        assert_eq!(30, dur.num_seconds());
+        assert_eq!(0, dur.subsec_nanos());
+    }
+
+    #[test]
+    fn parse_duration_running() {
+        let now = Utc.timestamp_opt(1404810630, 0).unwrap();
+        let (dur, is_running) = parse_duration(now, (-1404810600).into());
+
+        assert!(is_running);
+        assert_eq!(30, dur.num_seconds());
+        assert_eq!(0, dur.subsec_nanos());
+    }
 }
