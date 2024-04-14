@@ -1,4 +1,4 @@
-name: Rust
+name: CI
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ "master" ]
   schedule:
-  - cron: '24 3 3 * *'  # To check for cargo audit issues
+  - cron: '24 3 3 * *'
   workflow_dispatch:
 
 env:
