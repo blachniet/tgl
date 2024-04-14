@@ -25,3 +25,8 @@ jobs:
       run: cargo test --verbose
     - name: Audit
       run: cargo audit
+
+    - name: Anchore Grype scan
+      uses: anchore/scan-action@v3
+      with:
+        path: "."
