@@ -16,6 +16,8 @@ struct Cli {
 enum Command {
     /// Get the current status of Toggl timers for today
     Status,
+    /// Get the current status of Toggl timers for yesterday
+    Yesterday,
     /// Start a new time entry
     Start,
     /// Stop the current time entry
@@ -31,6 +33,7 @@ fn main() -> Result<()> {
 
     match &cli.command {
         Some(Command::Status) => run_status(),
+        Some(Command::Yesterday) => run_yesterday(),
         Some(Command::Start) => run_start(),
         Some(Command::Stop) => run_stop(),
         Some(Command::Restart) => run_restart(),
@@ -125,12 +128,22 @@ fn get_duration_parts(dur: Duration) -> (i64, i64, i64) {
 }
 
 fn run_status() -> Result<()> {
-    let client = get_client()?;
     let now = Local::now();
-    let today = Local
-        .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+    show_status_for_day(now)
+}
+
+fn run_yesterday() -> Result<()> {
+    let now = Local::now();
+    let yesterday = now.checked_sub_days(Days::new(1)).unwrap();
+    show_status_for_day(yesterday)
+}
+
+fn show_status_for_day(day: DateTime<Local>) -> Result<()> {
+    let client = get_client()?;
+    let start_of_day = Local
+        .with_ymd_and_hms(day.year(), day.month(), day.day(), 0, 0, 0)
         .unwrap();
-    let tomorrow = today.checked_add_days(Days::new(1)).unwrap();
+    let end_of_day = start_of_day.checked_add_days(Days::new(1)).unwrap();
     let mut latest_entries = client
         .get_latest_entries()
         .context("Failed to retrieve time entries")?;
@@ -140,13 +153,13 @@ fn run_status() -> Result<()> {
     let mut dur_today = Duration::zero();
     for entry in latest_entries.iter().filter(|e| {
         if let Some(start) = e.start {
-            if start >= today && start < tomorrow {
+            if start >= start_of_day && start < end_of_day {
                 return true;
             }
         }
 
         if let Some(stop) = e.stop {
-            if stop >= today && stop < tomorrow {
+            if stop >= start_of_day && stop < end_of_day {
                 return true;
             }
         }
@@ -159,7 +172,7 @@ fn run_status() -> Result<()> {
     }
 
     println!();
-    print!("⏱  {} logged today.", fmt_duration(dur_today));
+    print!("⏱  {} logged.", fmt_duration(dur_today));
 
     if is_running {
         let target_dur = Duration::hours(8);
